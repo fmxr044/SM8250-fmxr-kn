@@ -173,8 +173,7 @@ jobs:
             scripts/config --file out/.config -d ZRAM_MEMORY_TRACKING
             scripts/config --file out/.config -d ZRAM_DEF_COMP
             scripts/config --file out/.config -d ZRAM_DEF_COMP_LZ4
-        fi
-          
+            
       - name: kernel pmic options
         if: ${{ github.event.inputs.thermal_pmic == 'yes' }}
         run: |
