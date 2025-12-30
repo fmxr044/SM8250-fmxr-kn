@@ -163,11 +163,37 @@ jobs:
           cd kernel_tree
           sed -i -e '/# CONFIG_LTO_CLANG_THIN is not set/c\CONFIG_LTO_CLANG_THIN=y;' arch/arm64/configs/vendor/munch_defconfig
           sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\# CONFIG_LTO_CLANG_FULL is not set;' arch/arm64/configs/vendor/munch_defconfig
-         
+      
+      - name: Oplus Features
+        if: ${{ github.event.inputs.OPLUS_FEATURES == 'yes' }}
+        run: |
+          cd kernel_tree
+          sed -i -e '/# CONFIG_OPLUS_PORT is not set/c\CONFIG_OPLUS_PORT=y;' arch/arm64/configs/vendor/munch_defconfig
+
+      - name: Apply Modifications (if modified build)
+        if: matrix.kernel == 2 || matrix.kernel == 4
+        run: |
+          cd kernel_tree
+          sed -i -e '/<2553600>,/c\<2553600>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<2649600>,/c\//<2649600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<2745600>,/c\//<2745600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<2841600>,/c\//<2841600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<3187200>;/c\//<3187200>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-l11r-38-08-0a-dsc-cmd.dtsi
+          sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-l11r-38-08-0a-dsc-cmd.dtsi
+      
+      - name: setup Kernel build
+        run: |
+          export PATH="$(pwd)/clang/bin:$PATH"
+          export ARCH=arm64
+          export SUBARCH=ARM64
+          export KBUILD_BUILD_USER="builder"
+          export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
+          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
+          make O=out vendor/munch_defconfig
       - name: zram configuration
         if: ${{ github.event.inputs.disable_ZRAM == 'yes' }}
         run: |
-          make O=out vendor/munch_defconfig
           scripts/config --file out/.config -d ZRAM
           scripts/config --file out/.config -d ZRAM_WRITEBACK
           scripts/config --file out/.config -d ZRAM_MEMORY_TRACKING
@@ -188,35 +214,9 @@ jobs:
         if: ${{ github.event.inputs.disable_thermal_conf == 'yes' }}
         run: |
          scripts/config --file out/.config -d CONFIG_THERMAL
-      
-      - name: Oplus Features
-        if: ${{ github.event.inputs.OPLUS_FEATURES == 'yes' }}
-        run: |
+         
+      -name: start build kernel
           cd kernel_tree
-          sed -i -e '/# CONFIG_OPLUS_PORT is not set/c\CONFIG_OPLUS_PORT=y;' arch/arm64/configs/vendor/munch_defconfig
-
-      - name: Apply Modifications (if modified build)
-        if: matrix.kernel == 2 || matrix.kernel == 4
-        run: |
-          cd kernel_tree
-          sed -i -e '/<2553600>,/c\<2553600>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e '/<2649600>,/c\//<2649600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e '/<2745600>,/c\//<2745600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e '/<2841600>,/c\//<2841600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e '/<3187200>;/c\//<3187200>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-l11r-38-08-0a-dsc-cmd.dtsi
-          sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-l11r-38-08-0a-dsc-cmd.dtsi
-      
-      - name: Build Kernel
-        run: |
-          export PATH="$(pwd)/clang/bin:$PATH"
-          export ARCH=arm64
-          export SUBARCH=ARM64
-          export KBUILD_BUILD_USER="builder"
-          export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
-          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
-          cd kernel_tree
-          
           make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
             cp out/arch/arm64/boot/Image.gz ../Image.gz
