@@ -168,7 +168,7 @@ jobs:
           sed -i -e '/CONFIG_ZRAM=y/c\# CONFIG_ZRAM is not set;' arch/arm64/configs/vendor/munch_defconfig
           
       - name: kernel pmic options
-        if: ${{ github.event.inputs.thermal_pmic == 'disable' }}
+        if: ${{ github.event.inputs.thermal_pmic == 'true' }}
         run: |
           sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set;' arch/arm64/configs/vendor/munch_defconfig
           
