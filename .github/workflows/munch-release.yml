@@ -18,7 +18,7 @@ on:
         required: false
       CUSTOM_SED:
         description: 'Custom Kernel Version'
-        default: '-userdebug'
+        default: '-perf'
         required: false
       COMPILER:
         description: 'Choose compiler'
@@ -36,31 +36,38 @@ on:
           - full_lto
           - thin_lto
         default: full_lto
-      ZRAM:
+      disable_ZRAM:
         required: true
         type: choice
         options:
-          - enable
-          - disable
-        default: enable
+          - 'yes'
+          - 'no'
+        default: 'no'
       thermal_pmic:
-        description: 'Thermal PMIC (warning: disable pmic thermal config is very dangerous,maybe cause dry joint and damaged your device "*u need to reball cpu to fix that"so do it at your own risk)'
+        description: 'Thermal PMIC (warning: disable pmic thermal config is very dangerous,maybe cause dry joint and damaged your device "*u need to reball cpu to fix that" so do it at your own risk)'
         required: true
         type: choice
         options:
-          - true
-          - false
-        default: false
-      all_thermal:
+          - 'yes'
+          - 'no'
+        default: 'no'
+      disable_thermal_conf:
         description: 'Disable all thermal configs (warning: disable all thermals is very dangerous,it maybe damaged your device,so do it at your own risk)'
         required: true
         type: choice
         options:
-          - true
-          - false
-        default: false
+          - 'yes'
+          - 'no'
+        default: 'no'
       OPLUS_FEATURES:
         description: 'select yes if you want oplus features'
+        required: true
+        type: choice
+        options:
+          - 'yes'
+          - 'no'
+        default: 'no'
+      kallsyms_all:
         required: true
         type: choice
         options:
@@ -158,24 +165,32 @@ jobs:
           sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\# CONFIG_LTO_CLANG_FULL is not set;' arch/arm64/configs/vendor/munch_defconfig
          
       - name: zram configuration
-        if: ${{ github.event.inputs.ZRAM == 'disable' }}
-        run: |
-          cd kernel_tree
-          sed -i -e '/CONFIG_ZRAM_ENTROPY_THRESHOLD=100000/c\CONFIG_ZRAM_ENTROPY_THRESHOLD=n;' arch/arm64/configs/vendor/munch_defconfig
-          sed -i -e '/CONFIG_ZRAM_ENTROPY=y/c\# CONFIG_ZRAM_ENTROPY is not set;' arch/arm64/configs/vendor/munch_defconfig
-          sed -i -e '/CONFIG_ZRAM_DEF_COMP="lz4"/c\# CONFIG_ZRAM_DEF_COMP is not set;' arch/arm64/configs/vendor/munch_defconfig
-          sed -i -e '/CONFIG_ZRAM_DEF_COMP_LZ4=y/c\# CONFIG_ZRAM_DEF_COMP_LZ4 is not set;' arch/arm64/configs/vendor/munch_defconfig
-          sed -i -e '/CONFIG_ZRAM_BACKEND_LZ4=y/c\# CONFIG_ZRAM_BACKEND_LZ4 is not set;' arch/arm64/configs/vendor/munch_defconfig
-          sed -i -e '/CONFIG_ZRAM=y/c\# CONFIG_ZRAM is not set;' arch/arm64/configs/vendor/munch_defconfig
+        if [[ "${{ github.event.inputs.disable_ZRAM }}" == "yes" ]]; then
+            make O=out vendor/munch_defconfig
+            scripts/config --file out/.config -d ZRAM
+            scripts/config --file out/.config -d ZRAM_WRITEBACK
+            scripts/config --file out/.config -d ZRAM_MEMORY_TRACKING
+            scripts/config --file out/.config -d ZRAM_DEF_COMP
+            scripts/config --file out/.config -d ZRAM_DEF_COMP_LZ4
+        fi
           
       - name: kernel pmic options
-        if: ${{ github.event.inputs.thermal_pmic == 'true' }}
+        if: ${{ github.event.inputs.thermal_pmic == 'yes' }}
         run: |
           cd kernel_tree
           sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set;' arch/arm64/configs/vendor/munch_defconfig
           
-          
-
+      - name: enable config kallsyms_all
+       if: ${{ github.event.inputs.kallsyms_all == 'yes' }}
+       run: |
+         cd kernel_tree
+         echo 'CONFIG_KALLSYMS_ALL=y' >> arch/arm64/configs/vendor/munch_defconfig
+      
+      - name: disable thermal configs
+       if: ${{ github.event.inputs.disable_thermal_conf == 'yes' }}
+         cd kernel_tree
+         sed -i -e '/CONFIG_THERMAL=y/c\# CONFIG_THERMAL is not set;' arch/arm64/configs/vendor/munch_defconfig
+       
       - name: Oplus Features
         if: ${{ github.event.inputs.OPLUS_FEATURES == 'yes' }}
         run: |
@@ -199,8 +214,8 @@ jobs:
           export PATH="$(pwd)/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=ARM64
-          export KBUILD_BUILD_USER="renoroi"
-          export KBUILD_BUILD_HOST="dreamstate"
+          export KBUILD_BUILD_USER="builder"
+          export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
           make O=out vendor/munch_defconfig
