@@ -44,7 +44,15 @@ on:
           - disable
         default: enable
       thermal_pmic:
-        description: 'Thermal PMIC (warning: disable pmic thermal throlling is very dangerous options,do it at your own risk)'
+        description: 'Thermal PMIC (warning: disable pmic thermal config is very dangerous,maybe cause do it at your own risk)'
+        required: true
+        type: choice
+        options:
+          - enable
+          - disable
+        default: enable
+      all_thermal:
+        description: 'Disable all thermal configs (warning: disable all thermals is very dangerous,it maybe damaged your device,so do it at your own risk)'
         required: true
         type: choice
         options:
@@ -152,7 +160,7 @@ jobs:
       - name: zram configuration
         if: ${{ github.event.inputs.ZRAM == 'disable' }}
         run: |
-          sed -i -e '/CONFIG_ZRAM_ENTROPY_THRESHOLD=100000/c\# CONFIG_ZRAM_ENTROPY_THRESHOLDb is not set;' arch/arm64/configs/vendor/munch_defconfig
+          sed -i -e '/CONFIG_ZRAM_ENTROPY_THRESHOLD=100000/c\# CONFIG_ZRAM_ENTROPY_THRESHOLD is not set;' arch/arm64/configs/vendor/munch_defconfig
           sed -i -e '/CONFIG_ZRAM_ENTROPY=y/c\# CONFIG_ZRAM_ENTROPY is not set;' arch/arm64/configs/vendor/munch_defconfig
           sed -i -e '/CONFIG_ZRAM_DEF_COMP="lz4"/c\# CONFIG_ZRAM_DEF_COMP is not set;' arch/arm64/configs/vendor/munch_defconfig
           sed -i -e '/CONFIG_ZRAM_DEF_COMP_LZ4=y/c\# CONFIG_ZRAM_DEF_COMP_LZ4 is not set;' arch/arm64/configs/vendor/munch_defconfig
