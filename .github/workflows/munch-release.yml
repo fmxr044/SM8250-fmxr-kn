@@ -193,13 +193,8 @@ jobs:
           cd kernel_tree
           make O=out vendor/munch_defconfig
           scripts/config --file out/.config -d CONFIG_THERMAL
-          scripts/config --file out/.config -e CONFIG_KALLSYMS_ALL
           scripts/config --file out/.config -d CONFIG_QCOM_SPMI_TEMP_ALARM
           scripts/config --file out/.config -d ZRAM
-          scripts/config --file out/.config -d ZRAM_WRITEBACK
-          scripts/config --file out/.config -d ZRAM_MEMORY_TRACKING
-          scripts/config --file out/.config -d ZRAM_DEF_COMP
-          scripts/config --file out/.config -d ZRAM_DEF_COMP_LZ4
           make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
             cp out/arch/arm64/boot/Image.gz ../Image.gz
