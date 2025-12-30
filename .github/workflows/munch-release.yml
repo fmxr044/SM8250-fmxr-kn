@@ -167,27 +167,27 @@ jobs:
       - name: zram configuration
         if: ${{ github.event.inputs.disable_ZRAM == 'yes' }}
         run: |
-            make O=out vendor/munch_defconfig
-            scripts/config --file out/.config -d ZRAM
-            scripts/config --file out/.config -d ZRAM_WRITEBACK
-            scripts/config --file out/.config -d ZRAM_MEMORY_TRACKING
-            scripts/config --file out/.config -d ZRAM_DEF_COMP
-            scripts/config --file out/.config -d ZRAM_DEF_COMP_LZ4
-            
+          make O=out vendor/munch_defconfig
+          scripts/config --file out/.config -d ZRAM
+          scripts/config --file out/.config -d ZRAM_WRITEBACK
+          scripts/config --file out/.config -d ZRAM_MEMORY_TRACKING
+          scripts/config --file out/.config -d ZRAM_DEF_COMP
+          scripts/config --file out/.config -d ZRAM_DEF_COMP_LZ4
+        
       - name: kernel pmic options
         if: ${{ github.event.inputs.thermal_pmic == 'yes' }}
         run: |
           cd kernel_tree
           sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set;' arch/arm64/configs/vendor/munch_defconfig
-          
+        
       - name: enable config kallsyms_all
-       if: ${{ github.event.inputs.kallsyms_all == 'yes' }}
-       run: |
+        if: ${{ github.event.inputs.kallsyms_all == 'yes' }}
+        run: |
          cd kernel_tree
          echo 'CONFIG_KALLSYMS_ALL=y' >> arch/arm64/configs/vendor/munch_defconfig
       
       - name: disable thermal configs
-       if: ${{ github.event.inputs.disable_thermal_conf == 'yes' }}
+        if: ${{ github.event.inputs.disable_thermal_conf == 'yes' }}
          cd kernel_tree
          sed -i -e '/CONFIG_THERMAL=y/c\# CONFIG_THERMAL is not set;' arch/arm64/configs/vendor/munch_defconfig
        
