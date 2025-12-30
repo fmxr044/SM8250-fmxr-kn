@@ -160,7 +160,8 @@ jobs:
       - name: zram configuration
         if: ${{ github.event.inputs.ZRAM == 'disable' }}
         run: |
-          sed -i -e '/CONFIG_ZRAM_ENTROPY_THRESHOLD=100000/c\# CONFIG_ZRAM_ENTROPY_THRESHOLD is not set;' arch/arm64/configs/vendor/munch_defconfig
+          cd kernel_tree
+          sed -i -e '/CONFIG_ZRAM_ENTROPY_THRESHOLD=100000/c\CONFIG_ZRAM_ENTROPY_THRESHOLD=n;' arch/arm64/configs/vendor/munch_defconfig
           sed -i -e '/CONFIG_ZRAM_ENTROPY=y/c\# CONFIG_ZRAM_ENTROPY is not set;' arch/arm64/configs/vendor/munch_defconfig
           sed -i -e '/CONFIG_ZRAM_DEF_COMP="lz4"/c\# CONFIG_ZRAM_DEF_COMP is not set;' arch/arm64/configs/vendor/munch_defconfig
           sed -i -e '/CONFIG_ZRAM_DEF_COMP_LZ4=y/c\# CONFIG_ZRAM_DEF_COMP_LZ4 is not set;' arch/arm64/configs/vendor/munch_defconfig
@@ -170,6 +171,7 @@ jobs:
       - name: kernel pmic options
         if: ${{ github.event.inputs.thermal_pmic == 'true' }}
         run: |
+          cd kernel_tree
           sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set;' arch/arm64/configs/vendor/munch_defconfig
           
           
