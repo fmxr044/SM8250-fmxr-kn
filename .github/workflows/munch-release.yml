@@ -42,7 +42,7 @@ on:
         options:
           - 'yes'
           - 'no'
-        default: 'no'
+        default: 'yes'
       thermal_pmic:
         description: 'Thermal PMIC (warning: disable pmic thermal config is very dangerous,maybe cause dry joint and damaged your device "*u need to reball cpu to fix that" so do it at your own risk)'
         required: true
@@ -50,7 +50,7 @@ on:
         options:
           - 'yes'
           - 'no'
-        default: 'no'
+        default: 'yes'
       disable_thermal_conf:
         description: 'Disable all thermal configs (warning: disable all thermals is very dangerous,it maybe damaged your device,so do it at your own risk)'
         required: true
@@ -58,7 +58,7 @@ on:
         options:
           - 'yes'
           - 'no'
-        default: 'no'
+        default: 'yes'
       OPLUS_FEATURES:
         description: 'select yes if you want oplus features'
         required: true
@@ -73,7 +73,7 @@ on:
         options:
           - 'yes'
           - 'no'
-        default: 'no'
+        default: 'yes'
 
 jobs:
   build:
@@ -177,20 +177,17 @@ jobs:
       - name: kernel pmic options
         if: ${{ github.event.inputs.thermal_pmic == 'yes' }}
         run: |
-          cd kernel_tree
-          sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set;' arch/arm64/configs/vendor/munch_defconfig
+          scripts/config --file out/.config -d CONFIG_QCOM_SPMI_TEMP_ALARM
         
       - name: enable config kallsyms_all
         if: ${{ github.event.inputs.kallsyms_all == 'yes' }}
         run: |
-         cd kernel_tree
-         echo 'CONFIG_KALLSYMS_ALL=y' >> arch/arm64/configs/vendor/munch_defconfig
+         scripts/config --file out/.config -e CONFIG_KALLSYMS_ALL
       
       - name: disable thermal_conf
         if: ${{ github.event.inputs.disable_thermal_conf == 'yes' }}
         run: |
-         cd kernel_tree
-         sed -i -e '/CONFIG_THERMAL=y/c\# CONFIG_THERMAL is not set;' arch/arm64/configs/vendor/munch_defconfig
+         scripts/config --file out/.config -d CONFIG_THERMAL
       
       - name: Oplus Features
         if: ${{ github.event.inputs.OPLUS_FEATURES == 'yes' }}
