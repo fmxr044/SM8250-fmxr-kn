@@ -216,7 +216,8 @@ jobs:
         run: |
          scripts/config --file out/.config -d CONFIG_THERMAL
          
-      - name: start build kernel
+      - name: start_build_kernel
+        run: |
           cd kernel_tree
           make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
