@@ -44,21 +44,21 @@ on:
           - disable
         default: enable
       thermal_pmic:
-        description: 'Thermal PMIC (warning: disable pmic thermal config is very dangerous,maybe cause do it at your own risk)'
+        description: 'Thermal PMIC (warning: disable pmic thermal config is very dangerous,maybe cause dry joint and damaged your device "*u need to reball cpu to fix that"so do it at your own risk)'
         required: true
         type: choice
         options:
-          - enable
-          - disable
-        default: enable
+          - true
+          - false
+        default: false
       all_thermal:
         description: 'Disable all thermal configs (warning: disable all thermals is very dangerous,it maybe damaged your device,so do it at your own risk)'
         required: true
         type: choice
         options:
-          - enable
-          - disable
-        default: enable
+          - true
+          - false
+        default: false
       OPLUS_FEATURES:
         description: 'select yes if you want oplus features'
         required: true
