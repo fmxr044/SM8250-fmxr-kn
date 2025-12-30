@@ -44,7 +44,7 @@ on:
           - disable
         default: enable
       thermal_pmic:
-        description: 'warning: disable pmic thermal throlling is very dangerous options,do it at your own risk'
+        description: 'Thermal PMIC (warning: disable pmic thermal throlling is very dangerous options,do it at your own risk)'
         required: true
         type: choice
         options:
