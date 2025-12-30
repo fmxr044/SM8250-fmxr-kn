@@ -36,14 +36,15 @@ on:
           - full_lto
           - thin_lto
         default: full_lto
-        ZRAM:
+      ZRAM:
         required: true
         type: choice
         options:
           - enable
           - disable
         default: enable
-        thermal_pmic:
+      thermal_pmic:
+        description: 'warning: disable pmic thermal throlling is very dangerous options,do it at your own risk'
         required: true
         type: choice
         options:
