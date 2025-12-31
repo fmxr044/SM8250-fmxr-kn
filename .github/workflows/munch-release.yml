@@ -96,6 +96,7 @@ jobs:
           wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip -O ndk.zip
           mkdir clang
           unzip ndk.zip -d clang
+          export PATH="$(pwd)/clang/android-ndk-r21e/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
       
       - name: check clang ver
         run: |
