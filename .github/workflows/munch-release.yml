@@ -25,6 +25,7 @@ on:
         required: true
         type: choice
         options:
+          - android-ndk-r21e
           - neutron
           - aosp
           - aosp-21
@@ -92,7 +93,12 @@ jobs:
 
       - name: Download & Extract Clang
         run: |
-          if [[ "${{ github.event.inputs.COMPILER }}" == "aosp" ]]; then
+          if [[ "${{ github.event.inputs.COMPILER }}" == "android-ndk-r21e" ]]; then
+            wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip -O ndk.zip
+            mkdir clang
+            unzip ndk.zip -d clang
+            export PATH="$(pwd)/clang/android-ndk-r21e/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          elif [[ "${{ github.event.inputs.COMPILER }}" == "aosp" ]]; then
             wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
             mkdir clang
             tar -xf clang.tar.gz -C clang
@@ -187,6 +193,8 @@ jobs:
           sed -i -e '/CONFIG_QTI_VIRTUAL_SENSOR=y/c\# CONFIG_QTI_VIRTUAL_SENSOR is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_QTI_ADC_TM=y/c\# CONFIG_QTI_ADC_TM is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_THERMAL_TSENS=y/c\# CONFIG_THERMAL_TSENS is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_THERMAL_HWMON=y/c\# CONFIG_THERMAL_HWMON is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_DEVFREQ_THERMAL=y/c\# CONFIG_DEVFREQ_THERMAL is not set' arch/arm64/configs/stock_defconfig
           
       - name: disable kernel sign verity
         if: ${{ github.event.inputs.Kernel_Module == 'yes' }}
@@ -208,15 +216,31 @@ jobs:
           cd kernel_tree
           sed -i -e '/# CONFIG_MODULE_FORCE_LOAD is not set/c\CONFIG_MODULE_FORCE_LOAD=y' arch/arm64/configs/stock_defconfig
           sed -i -e '/# CONFIG_MODULE_FORCE_UNLOAD is not set/c\CONFIG_MODULE_FORCE_UNLOAD=y' arch/arm64/configs/stock_defconfig
-          
-          
-          
-
-          
-          
-          
-          
-          
+      
+      - name: special patch for apatch support
+        run: |
+          cd kernel_tree
+          sed -i -e '/CONFIG_RANDOMIZE_BASE=y/c\# CONFIG_RANDOMIZE_BASE is not set' arch/arm64/configs/stock_defconfig
+          echo "# CONFIG_LTO_CLANG is not set" >>arch/arm64/configs/stock_defconfig
+          echo "# CONFIG_LTO_CLANG_THIN is not set" >>arch/arm64/configs/stock_defconfig
+          echo "# CONFIG_CFI_CLANG is not set" >>arch/arm64/configs/stock_defconfig
+      
+      - name: custom patch for pwa64 debugger
+        run: |
+          cd kernel_tree
+          sed -i -e '/# CONFIG_FUNCTION_TRACER is not set/c\CONFIG_FUNCTION_TRACER=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_KPROBES is not set/c\CONFIG_KPROBES=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_DEBUG_FS is not set/c\CONFIG_DEBUG_FS=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_DEBUG_INFO_REDUCED is not set/c\CONFIG_DEBUG_INFO_REDUCED=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_DEBUG_INFO_SPLIT is not set/c\CONFIG_DEBUG_INFO_SPLIT=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_DEBUG_INFO_DWARF4 is not set/c\CONFIG_DEBUG_INFO_DWARF4=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_RELOCATABLE=y/c\# CONFIG_RELOCATABLE is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_STRICT_KERNEL_RWX=y/c\# CONFIG_STRICT_KERNEL_RWX is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_ARCH_HAS_ELF_RANDOMIZE=y/c\# CONFIG_ARCH_HAS_ELF_RANDOMIZE is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_ARCH_MMAP_RND_BITS=18/c\# CONFIG_ARCH_MMAP_RND_BITS is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_STACKPROTECTOR=y/c\# CONFIG_STACKPROTECTOR is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_STACKPROTECTOR_STRONG=y/c\# CONFIG_STACKPROTECTOR_STRONG is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_SECCOMP_FILTER=y/c\# CONFIG_SECCOMP_FILTER is not set' arch/arm64/configs/stock_defconfig
           
           
           
