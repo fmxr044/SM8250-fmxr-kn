@@ -41,17 +41,17 @@ on:
         required: true
         type: choice
         options:
-          - yes
-          - no
-        default: no
+          - 'yes'
+          - 'no'
+        default: 'yes'
       PMIC_KERNEL:
         description: '关闭内核级温控(危险)'
         required: true
         type: choice
         options:
-          - yes
-          - no
-        default: no
+          - 'yes'
+          - 'no'
+        default: 'no'
       OPLUS_FEATURES:
         description: '如果需要 oplus功能 请选择 是'
         required: true
@@ -164,8 +164,11 @@ jobs:
           sed -i -e '/CONFIG_QTI_QMI_COOLING_DEVICE=y/c\# CONFIG_QTI_QMI_COOLING_DEVICE is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_QTI_CPU_ISOLATE_COOLING_DEVICE=y/c\# CONFIG_QTI_CPU_ISOLATE_COOLING_DEVICE is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/# CONFIG_QCOM_TSENS is not set/c\CONFIG_QCOM_TSENS=y' arch/arm64/configs/stock_defconfig
-          
-          
+      
+      - name: restore original kernel enabled configs
+        if: ${{ github.event.inputs.REC_ORI_CONF == 'yes' }}
+        run: |
+          cd kernel_tree
       
       - name: Oplus Features
         if: ${{ github.event.inputs.OPLUS_FEATURES == 'yes' }}
