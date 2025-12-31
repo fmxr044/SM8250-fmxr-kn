@@ -78,7 +78,8 @@ jobs:
         run: |
           wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang-r547379.tar.gz
           tar -xf clang-r547379.tar.gz
-          export PATH="$(pwd)/clang-r547379/bin:$PATH"
+          echo "PATH=$(pwd)/clang-r547379/bin:$PATH" >> $GITHUB_ENV
+          
       - name: check clang ver
         run: |
           clang --version
