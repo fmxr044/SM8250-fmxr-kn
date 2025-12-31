@@ -76,9 +76,10 @@ jobs:
 
       - name: Download & Extract Clang (NDK r23b)
         run: |
-          wget https://dl.google.com/android/repository/android-ndk-r23c-linux.zip -O ndk.zip
-          unzip ndk.zip -d $GITHUB_WORKSPACE/ndk
-          echo "PATH=$GITHUB_WORKSPACE/ndk/android-ndk-r23c/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH" >> $GITHUB_ENV
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r492629.tar.gz -O clang13.tar.gz
+          mkdir -p $GITHUB_WORKSPACE/clang13
+          tar -xf clang13.tar.gz -C $GITHUB_WORKSPACE/clang13
+          echo "PATH=$GITHUB_WORKSPACE/clang13/bin:$PATH" >> $GITHUB_ENV
           
       - name: check clang ver
         run: |
@@ -236,11 +237,11 @@ jobs:
       
       - name: Build Kernel
         run: |
-          export PATH="$GITHUB_WORKSPACE/ndk/android-ndk-r23c/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          export PATH="$GITHUB_WORKSPACE/clang13/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=ARM64
           export KBUILD_BUILD_USER="builder"
-          export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
+          export KBUILD_BUILD_HOST="pangu-build-component-vendor"
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC+8 date)"
           make O=out vendor/munch_defconfig
           make O=out CC=clang CROSS_COMPILE=aarch64-linux-gnu- HOSTCC=gcc LLVM=1 LLVM_IAS=1 -j$(nproc)
