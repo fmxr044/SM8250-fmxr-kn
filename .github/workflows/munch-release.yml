@@ -78,8 +78,10 @@ jobs:
         run: |
           wget https://dl.google.com/android/repository/android-ndk-r23c-linux.zip -O ndk.zip
           unzip ndk.zip -d $GITHUB_WORKSPACE/ndk
-          echo "PATH=$GITHUB_WORKSPACE/ndk/android-ndk-r23c/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH" >> $GITHUB_ENV
-             
+          
+      - name: Set Clang 13 Path
+        run: echo "PATH=$GITHUB_WORKSPACE/ndk/android-ndk-r23c/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH" >> $GITHUB_ENV
+        
       - name: check clang ver
         run: |
           clang --version
@@ -239,16 +241,8 @@ jobs:
           export ARCH=arm64
           export SUBARCH=ARM64
           export KBUILD_BUILD_USER="builder"
-          export KBUILD_BUILD_HOST="pangu-build-component"
-          export KBUILD_BUILD_TIMESTAMP="$(date)"
-    
-          # 仅内核编译用 Clang 13 (NDK 内置)
-          CLANG13_PATH="$GITHUB_WORKSPACE/ndk/android-ndk-r23c/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          export PATH="$CLANG13_PATH:$PATH"
-
-          # 确认内核使用的是 Clang 13
-          clang --version
-
+          export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
+          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           make O=out vendor/munch_defconfig
           make O=out CC=clang CROSS_COMPILE=aarch64-linux-gnu- HOSTCC=gcc LLVM=1 LLVM_IAS=1 -j$(nproc)
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
