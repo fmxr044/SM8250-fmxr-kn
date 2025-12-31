@@ -5,23 +5,23 @@ on:
   workflow_dispatch:
     inputs:
       KERNEL_TREE_1:
-        description: 'Kernel Tree'
+        description: '内核源码'
         default: 'https://github.com/re-noroi/kernel_sm8250'
         required: true
       CODENAME:
-        description: 'Phone Codename'
+        description: '手机代号'
         default: 'munch'
         required: true
       ANYKERNEL_URL:
-        description: 'AnyKernel Url (leave blank if you dont want AnyKernel)'
+        description: 'AK3脚本链接'
         default: 'https://github.com/re-noroi/anykernel3-test'
         required: false
       CUSTOM_SED:
-        description: 'Custom Kernel Version'
+        description: '内核版本'
         default: '-beta-g5342241c9c65'
         required: false
       COMPILER:
-        description: 'Choose compiler'
+        description: '编译器'
         required: true
         type: choice
         options:
@@ -36,8 +36,24 @@ on:
           - full_lto
           - thin_lto
         default: thin_lto
+      DISABLE_ZRAM:
+        description: '关闭zram与swap功能'
+        required: true
+        type: choice
+        options:
+          - yes
+          - no
+        default: no
+      PMIC_KERNEL:
+        description: '关闭内核级温控(危险)'
+        required: true
+        type: choice
+        options:
+          - yes
+          - no
+        default: no
       OPLUS_FEATURES:
-        description: 'select yes if you want oplus features'
+        description: '如果需要 oplus功能 请选择 是'
         required: true
         type: choice
         options:
@@ -103,18 +119,6 @@ jobs:
             sed -i -e 's/CONFIG_LOCALVERSION="-FakeDreamer"/CONFIG_LOCALVERSION="${{ github.event.inputs.CUSTOM_SED }}"/' arch/arm64/configs/vendor/munch_defconfig
           fi
 
-      - name: Remove cycle count
-        run: |
-          cd kernel_tree
-          sed -i '/case POWER_SUPPLY_PROP_CYCLE_COUNT:/,/break;/c\
-          \tcase POWER_SUPPLY_PROP_CYCLE_COUNT:\
-          \t#ifdef CONFIG_BATT_VERIFY_BY_DS28E16\
-          \t\tpval->intval = fg->maxim_cycle_count;\
-          \t#else\
-          \t\trc = get_cycle_count(chip->counter, &pval->intval);\
-          \t#endif\
-          \t\tbreak;' drivers/power/supply/qcom/qpnp-fg-gen4.c
-      
       - name: Apply Patches (Skip for Kernel 3)
         if: matrix.kernel != 3
         run: |
@@ -134,6 +138,35 @@ jobs:
           sed -i -e '/# CONFIG_LTO_CLANG_THIN is not set/c\CONFIG_LTO_CLANG_THIN=y;' arch/arm64/configs/vendor/munch_defconfig
           sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\# CONFIG_LTO_CLANG_FULL is not set;' arch/arm64/configs/vendor/munch_defconfig
          
+      - name: Change zram & swap config
+        if: ${{ github.event.inputs.DISABLE_ZRAM == 'yes' }}
+        run: |
+          cd kernel_tree
+          sed -i -e '/CONFIG_MEMCG_SWAP_ENABLED=y/c\# CONFIG_MEMCG_SWAP_ENABLED is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_MEMCG_SWAP=y/c\# CONFIG_MEMCG_SWAP is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_SWAP=y/c\# CONFIG_SWAP is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_ZRAM=y/c\# CONFIG_ZRAM is not set' arch/arm64/configs/stock_defconfig
+          
+      - name: disable kernel thermal
+        if: ${{ github.event.inputs.PMIC_KERNEL == 'yes' }}
+        run: |
+          cd kernel_tree
+          sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_CPU_THERMAL=y/c\# CONFIG_CPU_THERMAL is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_THERMAL=y/c\# CONFIG_THERMAL is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_THERMAL_EMERGENCY_POWEROFF_DELAY_MS=0/c\CONFIG_THERMAL_EMERGENCY_POWEROFF_DELAY_MS=2147483647' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_THERMAL_GOV_USER_SPACE=y/c\# CONFIG_THERMAL_GOV_USER_SPACE is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_THERMAL_GOV_LOW_LIMITS=y/c\# CONFIG_THERMAL_GOV_LOW_LIMITS is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_THERMAL_GOV_STEP_WISE=y/c\# CONFIG_THERMAL_GOV_STEP_WISE is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE=y/c\# CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_THERMAL_OF=y/c\# CONFIG_THERMAL_OF is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_QTI_THERMAL_LIMITS_DCVS=y/c\# CONFIG_QTI_THERMAL_LIMITS_DCVS is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_QTI_QMI_COOLING_DEVICE=y/c\# CONFIG_QTI_QMI_COOLING_DEVICE is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_QTI_CPU_ISOLATE_COOLING_DEVICE=y/c\# CONFIG_QTI_CPU_ISOLATE_COOLING_DEVICE is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_QCOM_TSENS is not set/c\CONFIG_QCOM_TSENS=y' arch/arm64/configs/stock_defconfig
+          
+          
+      
       - name: Oplus Features
         if: ${{ github.event.inputs.OPLUS_FEATURES == 'yes' }}
         run: |
@@ -161,10 +194,6 @@ jobs:
           export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
-          sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_CPU_THERMAL=y/c\# CONFIG_CPU_THERMAL is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_THERMAL=y/c\# CONFIG_THERMAL is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_THERMAL_EMERGENCY_POWEROFF_DELAY_MS=0/c\# CONFIG_THERMAL_EMERGENCY_POWEROFF_DELAY_MS=2147483647' arch/arm64/configs/stock_defconfig
           make O=out vendor/munch_defconfig
           make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
