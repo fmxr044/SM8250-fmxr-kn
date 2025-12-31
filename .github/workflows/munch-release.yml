@@ -98,8 +98,8 @@ jobs:
           unzip ndk.zip -d clang
       
       - name: check clang ver
-       run: |
-         clang --version
+        run: |
+          clang --version
             
       - name: Set Kernel Environment Variables
         run: |
