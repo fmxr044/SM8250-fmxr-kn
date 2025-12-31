@@ -29,7 +29,7 @@ on:
           - neutron
           - aosp
           - aosp-21
-        default: aosp
+        default: android-ndk-r21e
       LTO_CHOICE:
         required: true
         type: choice
@@ -93,26 +93,14 @@ jobs:
 
       - name: Download & Extract Clang
         run: |
-          if [[ "${{ github.event.inputs.COMPILER }}" == "android-ndk-r21e" ]]; then
             wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip -O ndk.zip
             mkdir clang
             unzip ndk.zip -d clang
-            export PATH="$(pwd)/clang/android-ndk-r21e/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
-          elif [[ "${{ github.event.inputs.COMPILER }}" == "aosp" ]]; then
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
-            mkdir clang
-            tar -xf clang.tar.gz -C clang
-          elif [[ "${{ github.event.inputs.COMPILER }}" == "aosp-21" ]]; then
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/ebcc6c3bef363bc539ea39f45b6abae1dce6ff1a/clang-r574158.tar.gz -O clang.tar.gz
-            mkdir clang
-            tar -xf clang.tar.gz -C clang
-          else
-            wget https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/10032024/neutron-clang-10032024.tar.zst -O clang.tar.zst
-            mkdir clang
-            unzstd -d clang.tar.zst
-            tar -xf clang.tar -C clang
-          fi
-          
+      
+      -name: check clang ver
+       run: |
+         clang --version
+            
       - name: Set Kernel Environment Variables
         run: |
           echo "KERNEL_TREE=${{ github.event.inputs.KERNEL_TREE_1 }}" >> $GITHUB_ENV
@@ -274,7 +262,7 @@ jobs:
       
       - name: Build Kernel
         run: |
-          export PATH="$(pwd)/clang/bin:$PATH"
+          export PATH="$(pwd)/clang/android-ndk-r21e/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=ARM64
           export KBUILD_BUILD_USER="builder"
