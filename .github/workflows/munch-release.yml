@@ -161,9 +161,8 @@ jobs:
           export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
-          make O=out vendor/munch_defconfig        
-          scripts/config --file out/.config -d CONFIG_QCOM_SPMI_TEMP_ALARM
-          make oldconfig
+          sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set;' arch/arm64/configs/vendor/munch_defconfig
+          make O=out vendor/munch_defconfig
           make O=out CC=clang -j4 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
             cp out/arch/arm64/boot/Image.gz ../Image.gz
