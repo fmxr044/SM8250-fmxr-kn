@@ -36,38 +36,8 @@ on:
           - full_lto
           - thin_lto
         default: full_lto
-      ZRAM:
-        required: true
-        type: choice
-        options:
-          - 'yes'
-          - 'no'
-        default: 'no'
-      thermal_pmic:
-        description: 'Thermal PMIC (warning: disable pmic thermal config is very dangerous,maybe cause dry joint and damaged your device "*u need to reball cpu to fix that" so do it at your own risk)'
-        required: true
-        type: choice
-        options:
-          - 'yes'
-          - 'no'
-        default: 'no'
-      disable_thermal_conf:
-        description: 'Disable all thermal configs (warning: disable all thermals is very dangerous,it maybe damaged your device,so do it at your own risk)'
-        required: true
-        type: choice
-        options:
-          - 'yes'
-          - 'no'
-        default: 'no'
       OPLUS_FEATURES:
         description: 'select yes if you want oplus features'
-        required: true
-        type: choice
-        options:
-          - 'yes'
-          - 'no'
-        default: 'no'
-      kallsyms_all:
         required: true
         type: choice
         options:
