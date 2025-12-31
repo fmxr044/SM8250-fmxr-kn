@@ -76,10 +76,10 @@ jobs:
 
       - name: Download & Extract Clang
         run: |
-          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
-          mkdir clang
-          tar -xf clang.tar.gz -C clang
-          echo "PATH=$GITHUB_WORKSPACE/clang/bin:$PATH" >> $GITHUB_ENV
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r473993.tar.gz -O clang13.tar.gz
+          mkdir clang13
+          tar -xf clang13.tar.gz -C clang13
+          echo "PATH=$GITHUB_WORKSPACE/clang13/bin:$PATH" >> $GITHUB_ENV
           
       - name: check clang ver
         run: |
