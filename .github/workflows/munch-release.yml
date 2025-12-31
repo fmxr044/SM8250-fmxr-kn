@@ -16,10 +16,6 @@ on:
         description: 'AnyKernel Url (leave blank if you dont want AnyKernel)'
         default: 'https://github.com/re-noroi/anykernel3-test'
         required: false
-      CUSTOM_SED:
-        description: 'Custom Kernel Version'
-        default: '-FakeDreamer'
-        required: false
       COMPILER:
         description: 'Choose compiler'
         required: true
@@ -29,13 +25,6 @@ on:
           - aosp
           - aosp-21
         default: aosp
-      LTO_CHOICE:
-        required: true
-        type: choice
-        options:
-          - full_lto
-          - thin_lto
-        default: thin_lto
       OPLUS_FEATURES:
         description: 'select yes if you want oplus features'
         required: true
