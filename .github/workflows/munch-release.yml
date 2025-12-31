@@ -163,6 +163,8 @@ jobs:
           cd kernel_tree
           sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_CPU_THERMAL=y/c\# CONFIG_CPU_THERMAL is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_THERMAL=y/c\# CONFIG_THERMAL is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_THERMAL_EMERGENCY_POWEROFF_DELAY_MS=0/c\# CONFIG_THERMAL_EMERGENCY_POWEROFF_DELAY_MS=2147483647' arch/arm64/configs/stock_defconfig
           make O=out vendor/munch_defconfig
           make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
