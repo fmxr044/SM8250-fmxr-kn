@@ -236,13 +236,12 @@ jobs:
       
       - name: Build Kernel
         run: |
-          export KBUILD_BUILD_USER="builder"
-          export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
-          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC+8 date)"
-          
           export PATH="$GITHUB_WORKSPACE/ndk/android-ndk-r23c/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=ARM64
+          export KBUILD_BUILD_USER="builder"
+          export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
+          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC+8 date)"
           make O=out vendor/munch_defconfig
           make O=out CC=clang CROSS_COMPILE=aarch64-linux-gnu- HOSTCC=gcc LLVM=1 LLVM_IAS=1 -j$(nproc)
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
@@ -374,4 +373,3 @@ jobs:
             AnyKernel3-${{ matrix.kernel }}/
             !AnyKernel3-${{ matrix.kernel }}/.git
             !AnyKernel3-${{ matrix.kernel }}/.github
-      
