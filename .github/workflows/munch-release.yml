@@ -162,7 +162,7 @@ jobs:
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
           make O=out vendor/munch_defconfig
-          scripts/config --file out/.config -d CONFIG_THERMAL
+          
           scripts/config --file out/.config -d CONFIG_QCOM_SPMI_TEMP_ALARM
           make oldconfig
           make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
