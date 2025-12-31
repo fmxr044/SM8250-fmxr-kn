@@ -245,7 +245,7 @@ jobs:
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC+8 date)"
           cd kernel_tree
           make O=out vendor/munch_defconfig
-          make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
+          make O=out CC=clang HOSTCC=gcc CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 -j$(nproc --all)
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
             cp out/arch/arm64/boot/Image.gz ../Image.gz
             mv out/arch/arm64/boot/dtbo.img ../munch-aosp-dtbo.img
