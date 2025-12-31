@@ -97,7 +97,7 @@ jobs:
           mkdir clang
           unzip ndk.zip -d clang
       
-      -name: check clang ver
+      - name: check clang ver
        run: |
          clang --version
             
