@@ -18,7 +18,7 @@ on:
         required: false
       CUSTOM_SED:
         description: 'Custom Kernel Version'
-        default: '-qgki-debug'
+        default: '-beta-g5342241c9c65'
         required: false
       COMPILER:
         description: 'Choose compiler'
