@@ -242,11 +242,11 @@ jobs:
           export KBUILD_BUILD_HOST="pangu-build-component"
           export KBUILD_BUILD_TIMESTAMP="$(date)"
     
-    # 仅内核编译用 Clang 13 (NDK 内置)
+          # 仅内核编译用 Clang 13 (NDK 内置)
           CLANG13_PATH="$GITHUB_WORKSPACE/ndk/android-ndk-r23c/toolchains/llvm/prebuilt/linux-x86_64/bin"
           export PATH="$CLANG13_PATH:$PATH"
 
-    # 确认内核使用的是 Clang 13
+          # 确认内核使用的是 Clang 13
           clang --version
 
           make O=out vendor/munch_defconfig
