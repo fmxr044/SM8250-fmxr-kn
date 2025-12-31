@@ -88,7 +88,7 @@ jobs:
       - name: Kernel Version
         run: |
           cd kernel_tree
-            sed -i -e 's/CONFIG_LOCALVERSION="-FakeDreamer"/CONFIG_LOCALVERSION="-perf-g5342241c9c65"' arch/arm64/configs/vendor/munch_defconfig
+            sed -i -e '/CONFIG_LOCALVERSION="-FakeDreamer"/CONFIG_LOCALVERSION="-perf-g5342241c9c65"' arch/arm64/configs/vendor/munch_defconfig
 
       - name: Remove cycle count
         run: |
