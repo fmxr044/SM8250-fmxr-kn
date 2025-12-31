@@ -12,7 +12,7 @@ on:
         options:
           - 'https://github.com/re-noroi/kernel_sm8250'
           - 'private'
-        default: 'private'
+        
       KERNEL_TREE_BRANCH_1:
         description: 'Kernel Tree Branch 1'
         default: 'freesia'
