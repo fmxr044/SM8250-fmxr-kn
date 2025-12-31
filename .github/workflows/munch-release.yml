@@ -236,7 +236,7 @@ jobs:
       
       - name: Build Kernel
         run: |
-          export PATH="$(pwd)/clang-r547379/bin:$PATH"
+          
           export ARCH=arm64
           export SUBARCH=ARM64
           export KBUILD_BUILD_USER="builder"
