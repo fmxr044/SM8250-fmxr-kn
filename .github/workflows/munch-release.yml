@@ -192,7 +192,7 @@ jobs:
           export SUBARCH=ARM64
           export KBUILD_BUILD_USER="builder"
           export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
-          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
+          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC+8 date)"
           cd kernel_tree
           make O=out vendor/munch_defconfig
           make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
