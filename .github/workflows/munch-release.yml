@@ -89,31 +89,7 @@ jobs:
         run: |
           cd kernel_tree
             sed -i -e '/CONFIG_LOCALVERSION=""/CONFIG_LOCALVERSION="-perf-g5342241c9c65"' arch/arm64/configs/vendor/munch_defconfig
-
-      - name: Remove cycle count
-        run: |
-          cd kernel_tree
-          sed -i '/case POWER_SUPPLY_PROP_CYCLE_COUNT:/,/break;/c\
-          \tcase POWER_SUPPLY_PROP_CYCLE_COUNT:\
-          \t#ifdef CONFIG_BATT_VERIFY_BY_DS28E16\
-          \t\tpval->intval = fg->maxim_cycle_count;\
-          \t#else\
-          \t\trc = get_cycle_count(chip->counter, &pval->intval);\
-          \t#endif\
-          \t\tbreak;' drivers/power/supply/qcom/qpnp-fg-gen4.c
-      
-      - name: Apply Patches (Skip for Kernel 3)
-        if: matrix.kernel != 3
-        run: |
-          cd kernel_tree
-          bash nextpatch.sh
-
-      - name: Revert to stock gpufreq
-        if: matrix.kernel == 3 || matrix.kernel == 4
-        run: |
-          cd kernel_tree
-          patch -p1 -f < "0001-stock-gpu-freq.patch"
-
+            
       - name: Change Configs
         run: |
           cd kernel_tree
@@ -158,25 +134,7 @@ jobs:
           sed -i -e '/CONFIG_QTI_CPU_ISOLATE_COOLING_DEVICE=y/c\# CONFIG_QTI_CPU_ISOLATE_COOLING_DEVICE is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_QCOM_TSENS=y/c\# CONFIG_QCOM_TSENS is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_QTI_LIMITS_ISENSE_CDSP=y/c\# CONFIG_QTI_LIMITS_ISENSE_CDSP is not set' arch/arm64/con
-
-      - name: Oplus Features
-        if: ${{ github.event.inputs.OPLUS_FEATURES == 'yes' }}
-        run: |
-          cd kernel_tree
-          sed -i -e '/# CONFIG_OPLUS_PORT is not set/c\CONFIG_OPLUS_PORT=y;' arch/arm64/configs/vendor/munch_defconfig
-
-      - name: Apply Modifications (if modified build)
-        if: matrix.kernel == 2 || matrix.kernel == 4
-        run: |
-          cd kernel_tree
-          sed -i -e '/<2553600>,/c\<2553600>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e '/<2649600>,/c\//<2649600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e '/<2745600>,/c\//<2745600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e '/<2841600>,/c\//<2841600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e '/<3187200>;/c\//<3187200>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-l11r-38-08-0a-dsc-cmd.dtsi
-          sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-l11r-38-08-0a-dsc-cmd.dtsi
-      
+          
       - name: Build Kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
