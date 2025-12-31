@@ -27,7 +27,7 @@ on:
         required: false
       CUSTOM_SED:
         description: 'Custom Kernel Version'
-        default: '-FakeDreamer'
+        default: '-perf'
         required: false
       COMPILER:
         description: 'Choose compiler'
@@ -77,20 +77,9 @@ jobs:
 
       - name: Download & Extract Clang
         run: |
-          if [[ "${{ github.event.inputs.COMPILER }}" == "aosp" ]]; then
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
-            mkdir clang
-            tar -xf clang.tar.gz -C clang
-          elif [[ "${{ github.event.inputs.COMPILER }}" == "aosp-21" ]]; then
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/ebcc6c3bef363bc539ea39f45b6abae1dce6ff1a/clang-r574158.tar.gz -O clang.tar.gz
-            mkdir clang
-            tar -xf clang.tar.gz -C clang
-          else
-            wget https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/10032024/neutron-clang-10032024.tar.zst -O clang.tar.zst
-            mkdir clang
-            unzstd -d clang.tar.zst
-            tar -xf clang.tar -C clang
-          fi
+          wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip -O ndk.zip
+          unzip -q ndk.zip -d $GITHUB_WORKSPACE/ndk
+          echo "PATH=$GITHUB_WORKSPACE/ndk/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH" >> $GITHUB_ENV
 
       - name: Set Kernel Environment Variables
         run: |
@@ -133,8 +122,7 @@ jobs:
           cd kernel_tree
           patch -p1 -f < "0001-stock-gpu-freq.patch"
 
-      - name: Change LTO Type
-        if: ${{ github.event.inputs.LTO_CHOICE == 'thin_lto' }}
+      - name: Change configs
         run: |
           cd kernel_tree
           sed -i -e '/CONFIG_MMC_TEST=y/c\# CONFIG_MMC_TEST is not set' arch/arm64/configs/stock_defconfig
@@ -217,7 +205,7 @@ jobs:
 
       - name: Build Kernel
         run: |
-          export PATH="$(pwd)/clang/bin:$PATH"
+          export PATH=$GITHUB_WORKSPACE/ndk/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
           export ARCH=arm64
           export SUBARCH=ARM64
           export KBUILD_BUILD_USER="builder"
