@@ -35,7 +35,7 @@ on:
         options:
           - full_lto
           - thin_lto
-        default: full_lto
+        default: thin_lto
       OPLUS_FEATURES:
         description: 'select yes if you want oplus features'
         required: true
@@ -162,6 +162,11 @@ jobs:
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
           sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set;' arch/arm64/configs/vendor/munch_defconfig
+          sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set;' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set;' arch/arm64/configs/vendor/kona-iot-perf_defconfig
+          sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set;' arch/arm64/configs/vendor/kona-iot_defconfig
+          sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set;' arch/arm64/configs/vendor/kona-perf_defconfig
+          sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set;' arch/arm64/configs/vendor/kona_defconfig
           make O=out vendor/munch_defconfig
           make O=out CC=clang -j4 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
