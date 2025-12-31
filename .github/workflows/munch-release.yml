@@ -76,11 +76,9 @@ jobs:
 
       - name: Download & Extract Clang
         run: |
-          wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip -O ndk.zip
-          mkdir clang
-          unzip ndk.zip -d clang
-          export PATH="$(pwd)/clang/android-ndk-r21e/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
-      
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang-r547379.tar.gz
+          tar -xf clang-r547379.tar.gz
+          export PATH="$(pwd)/clang-r547379/bin:$PATH"
       - name: check clang ver
         run: |
           clang --version
@@ -237,7 +235,7 @@ jobs:
       
       - name: Build Kernel
         run: |
-          export PATH="$(pwd)/clang/android-ndk-r21e/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          export PATH="$(pwd)/clang-r547379/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=ARM64
           export KBUILD_BUILD_USER="builder"
@@ -245,7 +243,7 @@ jobs:
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC+8 date)"
           cd kernel_tree
           make O=out vendor/munch_defconfig
-          make O=out CC=clang HOSTCC=gcc CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 -j$(nproc --all)
+          make O=out CC=clang CROSS_COMPILE=aarch64-linux-gnu- HOSTCC=gcc LLVM=1 LLVM_IAS=1 -j$(nproc)
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
             cp out/arch/arm64/boot/Image.gz ../Image.gz
             mv out/arch/arm64/boot/dtbo.img ../munch-aosp-dtbo.img
