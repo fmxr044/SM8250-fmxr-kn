@@ -20,23 +20,6 @@ on:
         description: '内核版本'
         default: '-beta-g5342241c9c65'
         required: false
-      COMPILER:
-        description: '编译器'
-        required: true
-        type: choice
-        options:
-          - android-ndk-r21e
-          - neutron
-          - aosp
-          - aosp-21
-        default: android-ndk-r21e
-      LTO_CHOICE:
-        required: true
-        type: choice
-        options:
-          - full_lto
-          - thin_lto
-        default: thin_lto
       DISABLE_ZRAM:
         description: '关闭zram与swap功能'
         required: true
@@ -142,13 +125,6 @@ jobs:
           cd kernel_tree
           patch -p1 -f < "0001-stock-gpu-freq.patch"
 
-      - name: Change LTO Type
-        if: ${{ github.event.inputs.LTO_CHOICE == 'thin_lto' }}
-        run: |
-          cd kernel_tree
-          sed -i -e '/# CONFIG_LTO_CLANG_THIN is not set/c\CONFIG_LTO_CLANG_THIN=y;' arch/arm64/configs/vendor/munch_defconfig
-          sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\# CONFIG_LTO_CLANG_FULL is not set;' arch/arm64/configs/vendor/munch_defconfig
-         
       - name: Change zram & swap config
         if: ${{ github.event.inputs.DISABLE_ZRAM == 'yes' }}
         run: |
@@ -230,9 +206,7 @@ jobs:
           sed -i -e '/CONFIG_STACKPROTECTOR=y/c\# CONFIG_STACKPROTECTOR is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_STACKPROTECTOR_STRONG=y/c\# CONFIG_STACKPROTECTOR_STRONG is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_SECCOMP_FILTER=y/c\# CONFIG_SECCOMP_FILTER is not set' arch/arm64/configs/stock_defconfig
-          
-          
-          
+                   
       - name: patch usb_pd config
         run: |
           cd kernel_tree
