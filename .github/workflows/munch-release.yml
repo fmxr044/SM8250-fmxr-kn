@@ -74,7 +74,7 @@ jobs:
       - name: Install Dependencies
         run: sudo apt install flex libncurses6
 
-      - name: Download & Extract Clang (NDK r23b)
+      - name: Download & Extract Clang13
         run: |
           wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r492629.tar.gz -O clang13.tar.gz
           mkdir -p $GITHUB_WORKSPACE/clang13
