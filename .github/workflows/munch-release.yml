@@ -6,7 +6,7 @@ on:
     inputs:
       KERNEL_TREE_1:
         description: 'Kernel Tree'
-        default: 'https://github.com/re-noroi/kernel_sm8250'
+        default: 'https://github.com/kvsnr113/xiaomi_sm8250_kernel'
         required: true
       CODENAME:
         description: 'Phone Codename'
@@ -88,7 +88,7 @@ jobs:
       - name: Kernel Version
         run: |
           cd kernel_tree
-            sed -i -e '/CONFIG_LOCALVERSION="-FakeDreamer"/CONFIG_LOCALVERSION="-perf-g5342241c9c65"' arch/arm64/configs/vendor/munch_defconfig
+            sed -i -e '/CONFIG_LOCALVERSION=""/CONFIG_LOCALVERSION="-perf-g5342241c9c65"' arch/arm64/configs/vendor/munch_defconfig
 
       - name: Remove cycle count
         run: |
