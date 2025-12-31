@@ -1,59 +1,55 @@
-name: FD-release-munch-builder
+name: FD-tester-munch-builder
 
 on:
   pull_request:
   workflow_dispatch:
     inputs:
       KERNEL_TREE_1:
-        description: '内核源码'
+        description: 'Kernel Tree 1'
         default: 'https://github.com/re-noroi/kernel_sm8250'
         required: true
+      KERNEL_TREE_BRANCH_1:
+        description: 'Kernel Tree Branch 1'
+        default: 'freesia'
+        required: true
       CODENAME:
-        description: '手机代号'
+        description: 'Phone Codename'
         default: 'munch'
         required: true
       ANYKERNEL_URL:
-        description: 'AK3脚本链接'
+        description: 'AnyKernel Url (leave blank if you dont want AnyKernel)'
         default: 'https://github.com/re-noroi/anykernel3-test'
         required: false
       CUSTOM_SED:
-        description: '内核版本'
-        default: '-beta-g5342241c9c65'
+        description: 'Custom Kernel Version'
+        default: '-FakeDreamer'
         required: false
-      DISABLE_ZRAM:
-        description: '关闭zram与swap功能'
+      COMPILER:
+        description: 'Choose compiler'
+        required: true
+        type: choice
+        options:
+          - neutron
+          - aosp
+          - aosp-21
+        default: aosp
+      LTO_CHOICE:
+        required: true
+        type: choice
+        options:
+          - full_lto
+          - thin_lto
+        default: full_lto
+      PATCH_SKIP:
+        description: 'select yes if for stable branch'
         required: true
         type: choice
         options:
           - 'yes'
           - 'no'
-        default: 'yes'
-      PMIC_KERNEL:
-        description: '关闭内核温控与功耗管理(极其危险！)'
-        required: true
-        type: choice
-        options:
-          - 'yes'
-          - 'no'
-        default: 'yes'
-      Kernel_Module:
-        description: '是否关闭内核签名校验'
-        required: true
-        type: choice
-        options:
-          - 'yes'
-          - 'no'
-        default: 'yes'
-      FORCE_LOAD:
-        description: '是否启用强制加载/卸载内核模块功能'
-        required: true
-        type: choice
-        options:
-          - 'yes'
-          - 'no'
-        default: 'yes'
+        default: 'no'
       OPLUS_FEATURES:
-        description: '如果需要 oplus功能 请选择 是'
+        description: 'select yes if you want oplus features'
         required: true
         type: choice
         options:
@@ -74,28 +70,28 @@ jobs:
       - name: Install Dependencies
         run: sudo apt install flex libncurses6
 
-      - name: Download & Extract NDK r23c
+      - name: Download & Extract Clang
         run: |
-          wget https://dl.google.com/android/repository/android-ndk-r23c-linux.zip -O ndk.zip
-          unzip ndk.zip -d $GITHUB_WORKSPACE/ndk
-          
-      - name: Set Clang 13 Path
-        run: echo "PATH=$GITHUB_WORKSPACE/ndk/android-ndk-r23c/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH" >> $GITHUB_ENV
-        
-      - name: check clang ver
-        run: |
-          clang --version
-            
+          if [[ "${{ github.event.inputs.COMPILER }}" == "aosp" ]]; then
+            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
+            mkdir clang
+            tar -xf clang.tar.gz -C clang
+          elif [[ "${{ github.event.inputs.COMPILER }}" == "aosp-21" ]]; then
+            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/ebcc6c3bef363bc539ea39f45b6abae1dce6ff1a/clang-r574158.tar.gz -O clang.tar.gz
+            mkdir clang
+            tar -xf clang.tar.gz -C clang
+          else
+            wget https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/10032024/neutron-clang-10032024.tar.zst -O clang.tar.zst
+            mkdir clang
+            unzstd -d clang.tar.zst
+            tar -xf clang.tar -C clang
+          fi
+
       - name: Set Kernel Environment Variables
         run: |
           echo "KERNEL_TREE=${{ github.event.inputs.KERNEL_TREE_1 }}" >> $GITHUB_ENV
-          case "${{ matrix.kernel }}" in
-            1) echo "KERNEL_TREE_BRANCH=next-main" >> $GITHUB_ENV ;;
-            2) echo "KERNEL_TREE_BRANCH=next-susfs" >> $GITHUB_ENV ;;
-            3) echo "KERNEL_TREE_BRANCH=no-ksu" >> $GITHUB_ENV ;;
-            4) echo "KERNEL_TREE_BRANCH=freesia" >> $GITHUB_ENV ;;
-          esac
-         
+          echo "KERNEL_TREE_BRANCH=${{ github.event.inputs.KERNEL_TREE_BRANCH_1 }}" >> $GITHUB_ENV
+
       - name: Checkout Kernel via PAT
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
@@ -114,11 +110,17 @@ jobs:
             sed -i -e 's/CONFIG_LOCALVERSION="-FakeDreamer"/CONFIG_LOCALVERSION="${{ github.event.inputs.CUSTOM_SED }}"/' arch/arm64/configs/vendor/munch_defconfig
           fi
 
-      - name: Apply Patches (Skip for Kernel 3)
-        if: matrix.kernel != 3
+      - name: Remove cycle count
         run: |
           cd kernel_tree
-          bash nextpatch.sh
+          sed -i '/case POWER_SUPPLY_PROP_CYCLE_COUNT:/,/break;/c\
+          \tcase POWER_SUPPLY_PROP_CYCLE_COUNT:\
+          \t#ifdef CONFIG_BATT_VERIFY_BY_DS28E16\
+          \t\tpval->intval = fg->maxim_cycle_count;\
+          \t#else\
+          \t\trc = get_cycle_count(chip->counter, &pval->intval);\
+          \t#endif\
+          \t\tbreak;' drivers/power/supply/qcom/qpnp-fg-gen4.c
 
       - name: Revert to stock gpufreq
         if: matrix.kernel == 3 || matrix.kernel == 4
@@ -126,19 +128,39 @@ jobs:
           cd kernel_tree
           patch -p1 -f < "0001-stock-gpu-freq.patch"
 
-      - name: Change zram & swap config
-        if: ${{ github.event.inputs.DISABLE_ZRAM == 'yes' }}
+      - name: Change LTO Type
+        if: ${{ github.event.inputs.LTO_CHOICE == 'thin_lto' }}
         run: |
           cd kernel_tree
-          sed -i -e '/CONFIG_MEMCG_SWAP_ENABLED=y/c\# CONFIG_MEMCG_SWAP_ENABLED is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MEMCG_SWAP=y/c\# CONFIG_MEMCG_SWAP is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_SWAP=y/c\# CONFIG_SWAP is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_ZRAM=y/c\# CONFIG_ZRAM is not set' arch/arm64/configs/stock_defconfig
-          
-      - name: disable kernel thermal
-        if: ${{ github.event.inputs.PMIC_KERNEL == 'yes' }}
-        run: |
-          cd kernel_tree
+          sed -i -e '/CONFIG_MMC_TEST=y/c\# CONFIG_MMC_TEST is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_FUNCTION_TRACER is not set/c\CONFIG_FUNCTION_TRACER=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_KPROBES is not set/c\CONFIG_KPROBES=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_DEBUG_FS is not set/c\CONFIG_DEBUG_FS=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_DEBUG_INFO_REDUCED is not set/c\CONFIG_DEBUG_INFO_REDUCED=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_DEBUG_INFO_SPLIT is not set/c\CONFIG_DEBUG_INFO_SPLIT=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_DEBUG_INFO_DWARF4 is not set/c\CONFIG_DEBUG_INFO_DWARF4=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_RELOCATABLE=y/c\# CONFIG_RELOCATABLE is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_STRICT_KERNEL_RWX=y/c\# CONFIG_STRICT_KERNEL_RWX is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_ARCH_HAS_ELF_RANDOMIZE=y/c\# CONFIG_ARCH_HAS_ELF_RANDOMIZE is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_ARCH_MMAP_RND_BITS=18/c\# CONFIG_ARCH_MMAP_RND_BITS is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_STACKPROTECTOR=y/c\# CONFIG_STACKPROTECTOR is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_STACKPROTECTOR_STRONG=y/c\# CONFIG_STACKPROTECTOR_STRONG is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_SECCOMP_FILTER=y/c\# CONFIG_SECCOMP_FILTER is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_RANDOMIZE_BASE=y/c\# CONFIG_RANDOMIZE_BASE is not set' arch/arm64/configs/stock_defconfig
+          echo "# CONFIG_LTO_CLANG is not set" >>arch/arm64/configs/stock_defconfig
+          echo "# CONFIG_LTO_CLANG_THIN is not set" >>arch/arm64/configs/stock_defconfig
+          echo "# CONFIG_CFI_CLANG is not set" >>arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_MODULE_FORCE_LOAD is not set/c\CONFIG_MODULE_FORCE_LOAD=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/# CONFIG_MODULE_FORCE_UNLOAD is not set/c\CONFIG_MODULE_FORCE_UNLOAD=y' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_MODULE_SIG=y/c\# CONFIG_MODULE_SIG is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_MODULE_SIG_FORCE=y/c\# CONFIG_MODULE_SIG_FORCE is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_MODULE_SIG_ALL=y/c\# CONFIG_MODULE_SIG_ALL is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_MODULE_SIG_SHA1=y/c\# CONFIG_MODULE_SIG_SHA1 is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_MODULE_SIG_SHA224=y/c\# CONFIG_MODULE_SIG_SHA224 is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_MODULE_SIG_SHA256=y/c\# CONFIG_MODULE_SIG_SHA256 is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_MODULE_SIG_SHA384=y/c\# CONFIG_MODULE_SIG_SHA384 is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_MODULE_SIG_SHA512=y/c\# CONFIG_MODULE_SIG_SHA512 is not set' arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_MODULE_SIG_HASH="sha512"/c\# CONFIG_MODULE_SIG_HASH is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_CPU_THERMAL=y/c\# CONFIG_CPU_THERMAL is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_THERMAL=y/c\# CONFIG_THERMAL is not set' arch/arm64/configs/stock_defconfig
@@ -161,63 +183,15 @@ jobs:
           sed -i -e '/CONFIG_THERMAL_TSENS=y/c\# CONFIG_THERMAL_TSENS is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_THERMAL_HWMON=y/c\# CONFIG_THERMAL_HWMON is not set' arch/arm64/configs/stock_defconfig
           sed -i -e '/CONFIG_DEVFREQ_THERMAL=y/c\# CONFIG_DEVFREQ_THERMAL is not set' arch/arm64/configs/stock_defconfig
-          
-      - name: disable kernel sign verity
-        if: ${{ github.event.inputs.Kernel_Module == 'yes' }}
+          sed -i -e '/# CONFIG_LTO_CLANG_THIN is not set/c\CONFIG_LTO_CLANG_THIN=y;' arch/arm64/configs/vendor/munch_defconfig
+          sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\# CONFIG_LTO_CLANG_FULL is not set;' arch/arm64/configs/vendor/munch_defconfig
+
+      - name: Apply Patches
+        if: ${{ github.event.inputs.PATCH_SKIP == 'no' }}
         run: |
           cd kernel_tree
-          sed -i -e '/CONFIG_MODULE_SIG=y/c\# CONFIG_MODULE_SIG is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_FORCE=y/c\# CONFIG_MODULE_SIG_FORCE is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_ALL=y/c\# CONFIG_MODULE_SIG_ALL is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_SHA1=y/c\# CONFIG_MODULE_SIG_SHA1 is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_SHA224=y/c\# CONFIG_MODULE_SIG_SHA224 is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_SHA256=y/c\# CONFIG_MODULE_SIG_SHA256 is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_SHA384=y/c\# CONFIG_MODULE_SIG_SHA384 is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_SHA512=y/c\# CONFIG_MODULE_SIG_SHA512 is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_HASH="sha512"/c\# CONFIG_MODULE_SIG_HASH is not set' arch/arm64/configs/stock_defconfig
-          
-      - name: enable force load/unload kernel module
-        if: ${{ github.event.inputs.FORCE_LOAD == 'yes' }}
-        run: |
-          cd kernel_tree
-          sed -i -e '/# CONFIG_MODULE_FORCE_LOAD is not set/c\CONFIG_MODULE_FORCE_LOAD=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/# CONFIG_MODULE_FORCE_UNLOAD is not set/c\CONFIG_MODULE_FORCE_UNLOAD=y' arch/arm64/configs/stock_defconfig
-      
-      - name: special patch for apatch support
-        run: |
-          cd kernel_tree
-          sed -i -e '/CONFIG_RANDOMIZE_BASE=y/c\# CONFIG_RANDOMIZE_BASE is not set' arch/arm64/configs/stock_defconfig
-          echo "# CONFIG_LTO_CLANG is not set" >>arch/arm64/configs/stock_defconfig
-          echo "# CONFIG_LTO_CLANG_THIN is not set" >>arch/arm64/configs/stock_defconfig
-          echo "# CONFIG_CFI_CLANG is not set" >>arch/arm64/configs/stock_defconfig
-      
-      - name: custom patch for pwa64 debugger
-        run: |
-          cd kernel_tree
-          sed -i -e '/# CONFIG_FUNCTION_TRACER is not set/c\CONFIG_FUNCTION_TRACER=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/# CONFIG_KPROBES is not set/c\CONFIG_KPROBES=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/# CONFIG_DEBUG_FS is not set/c\CONFIG_DEBUG_FS=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/# CONFIG_DEBUG_INFO_REDUCED is not set/c\CONFIG_DEBUG_INFO_REDUCED=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/# CONFIG_DEBUG_INFO_SPLIT is not set/c\CONFIG_DEBUG_INFO_SPLIT=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/# CONFIG_DEBUG_INFO_DWARF4 is not set/c\CONFIG_DEBUG_INFO_DWARF4=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_RELOCATABLE=y/c\# CONFIG_RELOCATABLE is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_STRICT_KERNEL_RWX=y/c\# CONFIG_STRICT_KERNEL_RWX is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_ARCH_HAS_ELF_RANDOMIZE=y/c\# CONFIG_ARCH_HAS_ELF_RANDOMIZE is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_ARCH_MMAP_RND_BITS=18/c\# CONFIG_ARCH_MMAP_RND_BITS is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_STACKPROTECTOR=y/c\# CONFIG_STACKPROTECTOR is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_STACKPROTECTOR_STRONG=y/c\# CONFIG_STACKPROTECTOR_STRONG is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_SECCOMP_FILTER=y/c\# CONFIG_SECCOMP_FILTER is not set' arch/arm64/configs/stock_defconfig
-                   
-      - name: patch usb_pd config
-        run: |
-          cd kernel_tree
-          sed -i -e '/CONFIG_MMC_TEST=y/c\# CONFIG_MMC_TEST is not set' arch/arm64/configs/stock_defconfig
-          
-      - name: restore original kernel enabled configs
-        if: ${{ github.event.inputs.REC_ORI_CONF == 'yes' }}
-        run: |
-          cd kernel_tree
-      
+          bash nextpatch.sh
+
       - name: Oplus Features
         if: ${{ github.event.inputs.OPLUS_FEATURES == 'yes' }}
         run: |
@@ -235,121 +209,78 @@ jobs:
           sed -i -e '/<3187200>;/c\//<3187200>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
           sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-l11r-38-08-0a-dsc-cmd.dtsi
           sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-l11r-38-08-0a-dsc-cmd.dtsi
-      
+
       - name: Build Kernel
         run: |
+          export PATH="$(pwd)/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=ARM64
           export KBUILD_BUILD_USER="builder"
           export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
-          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
+          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC+8 date)"
+          cd kernel_tree
           make O=out vendor/munch_defconfig
-          make O=out CC=clang CROSS_COMPILE=aarch64-linux-gnu- HOSTCC=gcc LLVM=1 LLVM_IAS=1 -j$(nproc)
+          make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
-            cp out/arch/arm64/boot/Image.gz ../Image.gz
             mv out/arch/arm64/boot/dtbo.img ../munch-aosp-dtbo.img
             mv out/arch/arm64/boot/dtb.img ../munch-normal-dtb
-          elif [[ "${{ matrix.kernel }}" == 2 ]]; then
             cp out/arch/arm64/boot/Image.gz ../Image.gz
+          elif [[ "${{ matrix.kernel }}" == 2 ]]; then
             mv out/arch/arm64/boot/dtbo.img ../munch-miui-dtbo.img
             mv out/arch/arm64/boot/dtb.img ../munch-effcpu-dtb
           elif [[ "${{ matrix.kernel }}" == 3 ]]; then
-            cp out/arch/arm64/boot/Image.gz ../Image.gz
             mv out/arch/arm64/boot/dtb.img ../munch-normal-gpustk-dtb
-          else
+          elif [[ "${{ matrix.kernel }}" == 4 ]]; then
             mv out/arch/arm64/boot/dtb.img ../munch-effcpu-gpustk-dtb
           fi
 
       - name: Upload Kernel Artifacts
         uses: actions/upload-artifact@v4
-        if: matrix.kernel != 4
         with:
-          name: kernel-${{ matrix.kernel }}-base
+          name: kernel-1-${{ matrix.kernel }}
           path: |
+            *.img
+            *-dtb
             Image.gz
-
-      - name: Upload Kernel Artifacts
-        uses: actions/upload-artifact@v4
-        if: matrix.kernel == 1
-        with:
-          name: kernel-part-${{ matrix.kernel }}-addon
-          path: |
-            munch-aosp-dtbo.img
-            munch-normal-dtb
-
-      - name: Upload Kernel Artifacts
-        uses: actions/upload-artifact@v4
-        if: matrix.kernel == 2
-        with:
-          name: kernel-part-${{ matrix.kernel }}-addon
-          path: |
-            munch-miui-dtbo.img
-            munch-effcpu-dtb
-
-      - name: Upload Kernel Artifacts
-        uses: actions/upload-artifact@v4
-        if: matrix.kernel == 3
-        with:
-          name: kernel-part-${{ matrix.kernel }}-addon
-          path: |
-            munch-normal-gpustk-dtb
-
-      - name: Upload Kernel Artifacts
-        uses: actions/upload-artifact@v4
-        if: matrix.kernel == 4
-        with:
-          name: kernel-part-${{ matrix.kernel }}-addon
-          path: |
-            munch-effcpu-gpustk-dtb
 
   package_anykernel:
     needs: build
-    strategy:
-      matrix:
-        kernel: [1, 2, 3]
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Kernel Build Image
+      - name: Download Kernel Build Original
         uses: actions/download-artifact@v4
         with:
-          name: kernel-${{ matrix.kernel }}-base
-          path: kernel-${{ matrix.kernel }}-base
+          name: kernel-1-1
+          path: kernel-1-1
 
-      - name: Download Kernel Build Addon 1
+      - name: Download Kernel Build Modified
         uses: actions/download-artifact@v4
         with:
-          name: kernel-part-1-addon
-          path: kernel-part-1-addon
+          name: kernel-1-2
+          path: kernel-1-2
 
-      - name: Download Kernel Build Addon 2
+      - name: Download Kernel Build Stock + Stock GPU
         uses: actions/download-artifact@v4
         with:
-          name: kernel-part-2-addon
-          path: kernel-part-2-addon
+          name: kernel-1-3
+          path: kernel-1-3
 
-      - name: Download Kernel Build Addon 3
+      - name: Download Kernel Build Effcpu + Stock GPU
         uses: actions/download-artifact@v4
         with:
-          name: kernel-part-3-addon
-          path: kernel-part-3-addon
-
-      - name: Download Kernel Build Addon 4
-        uses: actions/download-artifact@v4
-        with:
-          name: kernel-part-4-addon
-          path: kernel-part-4-addon
+          name: kernel-1-4
+          path: kernel-1-4
 
       - name: Clone AnyKernel3
-        run: git clone --recursive --depth=1 ${{ github.event.inputs.ANYKERNEL_URL }} -b munch AnyKernel3-${{ matrix.kernel }}
+        run: git clone --recursive --depth=1 ${{ github.event.inputs.ANYKERNEL_URL }} -b munch AnyKernel3-1
 
       - name: Move Kernel Files to AnyKernel3
         run: |
-          mv kernel-${{ matrix.kernel }}-base/* AnyKernel3-${{ matrix.kernel }}/
-          mv kernel-part-1-addon/* AnyKernel3-${{ matrix.kernel }}/
-          mv kernel-part-2-addon/* AnyKernel3-${{ matrix.kernel }}/
-          mv kernel-part-3-addon/* AnyKernel3-${{ matrix.kernel }}/
-          mv kernel-part-4-addon/* AnyKernel3-${{ matrix.kernel }}/
+          mv kernel-1-1/* AnyKernel3-1/
+          mv kernel-1-2/* AnyKernel3-1/
+          mv kernel-1-3/* AnyKernel3-1/
+          mv kernel-1-4/* AnyKernel3-1/
 
       - name: Define ZIP Name
         run: |
@@ -358,19 +289,13 @@ jobs:
           if [[ "${{ github.event.inputs.OPLUS_FEATURES }}" == "yes" ]]; then
             EXTRA="-OPLUS"
           fi
-          if [[ "${{ matrix.kernel }}" == "1" ]]; then
-            echo "ZIP_NAME=[FD-][next-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA}]" >> $GITHUB_ENV
-          elif [[ "${{ matrix.kernel }}" == "2" ]]; then
-            echo "ZIP_NAME=[FD-][susfs-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA}]" >> $GITHUB_ENV
-          else
-            echo "ZIP_NAME=[FD-][noksu-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA}]" >> $GITHUB_ENV
-          fi
-      
+          echo "ZIP_NAME=[FD-][TEST-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA}]" >> $GITHUB_ENV
+
       - name: Upload Flashable Kernel Zip
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ZIP_NAME }}
           path: |
-            AnyKernel3-${{ matrix.kernel }}/
-            !AnyKernel3-${{ matrix.kernel }}/.git
-            !AnyKernel3-${{ matrix.kernel }}/.github
+            AnyKernel3-1/
+            !AnyKernel3-1/.git
+            !AnyKernel3-1/.github
