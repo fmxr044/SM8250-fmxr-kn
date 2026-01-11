@@ -28,8 +28,8 @@ on:
           - neutron
           - aosp
           - aosp-21
-          - clang-10.0.7
-          - clang-17.0
+          - clang-10
+          - clang-17
         default: aosp
       LTO_CHOICE:
         required: true
