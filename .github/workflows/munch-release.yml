@@ -81,10 +81,7 @@ jobs:
 
           elif [[ "${{ github.event.inputs.COMPILER }}" == "clang-17" ]]; then
             # clang 17.0.2 (AOSP clang-r487747)
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/clang-r487747.tar.gz -O clang.tar.gz
-            mkdir clang
-            tar -xf clang.tar.gz -C clang
-
+            git clone --depth=1 -b clang-r487747 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang
           else
             wget https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/10032024/neutron-clang-10032024.tar.zst -O clang.tar.zst
             mkdir clang
