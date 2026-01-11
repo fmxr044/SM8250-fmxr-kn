@@ -37,7 +37,7 @@ on:
         options:
           - full_lto
           - thin_lto
-        default: full_lto
+        default: thin_lto
       OPLUS_FEATURES:
         description: 'select yes if you want oplus features'
         required: true
@@ -70,11 +70,11 @@ jobs:
             wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/ebcc6c3bef363bc539ea39f45b6abae1dce6ff1a/clang-r574158.tar.gz -O clang.tar.gz
             mkdir clang
             tar -xf clang.tar.gz -C clang
-          elif [[ "${{ github.event.inputs.COMPILER }}" == "clang-10.0.7" ]]; then
+          elif [[ "${{ github.event.inputs.COMPILER }}" == "clang-10" ]]; then
             wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip -O ndk.zip
             unzip -q ndk.zip
             mv android-ndk-r21e/toolchains/llvm/prebuilt/linux-x86_64/* clang/
-          elif [[ "${{ github.event.inputs.COMPILER }}" == "clang-17.0" ]]; then
+          elif [[ "${{ github.event.inputs.COMPILER }}" == "clang-17" ]]; then
             wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/clang-r487747/clang-r487747.tar.gz -O clang.tar.gz
             tar -xf clang.tar.gz -C clang
           else
