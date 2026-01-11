@@ -6,7 +6,7 @@ on:
     inputs:
       KERNEL_TREE_1:
         description: 'Kernel Tree'
-        default: 'https://github.com/kvsnr113/xiaomi_sm8250_kernel'
+        default: 'https://github.com/re-noroi/kernel_sm8250'
         required: true
       CODENAME:
         description: 'Phone Codename'
@@ -16,6 +16,10 @@ on:
         description: 'AnyKernel Url (leave blank if you dont want AnyKernel)'
         default: 'https://github.com/re-noroi/anykernel3-test'
         required: false
+      CUSTOM_SED:
+        description: 'Custom Kernel Version'
+        default: '-FakeDreamer'
+        required: false
       COMPILER:
         description: 'Choose compiler'
         required: true
@@ -24,7 +28,16 @@ on:
           - neutron
           - aosp
           - aosp-21
+          - clang-10.0.7
+          - clang-17.0
         default: aosp
+      LTO_CHOICE:
+        required: true
+        type: choice
+        options:
+          - full_lto
+          - thin_lto
+        default: full_lto
       OPLUS_FEATURES:
         description: 'select yes if you want oplus features'
         required: true
@@ -57,6 +70,13 @@ jobs:
             wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/ebcc6c3bef363bc539ea39f45b6abae1dce6ff1a/clang-r574158.tar.gz -O clang.tar.gz
             mkdir clang
             tar -xf clang.tar.gz -C clang
+          elif [[ "${{ github.event.inputs.COMPILER }}" == "clang-10.0.7" ]]; then
+            wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip -O ndk.zip
+            unzip -q ndk.zip
+            mv android-ndk-r21e/toolchains/llvm/prebuilt/linux-x86_64/* clang/
+          elif [[ "${{ github.event.inputs.COMPILER }}" == "clang-17.0" ]]; then
+            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/clang-r487747/clang-r487747.tar.gz -O clang.tar.gz
+            tar -xf clang.tar.gz -C clang
           else
             wget https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/10032024/neutron-clang-10032024.tar.zst -O clang.tar.zst
             mkdir clang
@@ -88,61 +108,67 @@ jobs:
       - name: Kernel Version
         run: |
           cd kernel_tree
-            sed -i -e '/CONFIG_LOCALVERSION=""/CONFIG_LOCALVERSION="-perf-g5342241c9c65"' arch/arm64/configs/vendor/munch_defconfig
-            
-      - name: Change Configs
+          if [[ "${{ github.event.inputs.CUSTOM_SED }}" != "-FakeDreamer" ]]; then
+            sed -i -e 's/CONFIG_LOCALVERSION="-FakeDreamer"/CONFIG_LOCALVERSION="${{ github.event.inputs.CUSTOM_SED }}"/' arch/arm64/configs/vendor/munch_defconfig
+          fi
+
+      - name: Remove cycle count
         run: |
           cd kernel_tree
-          sed -i -e '/# CONFIG_KPROBES is not set/c\CONFIG_KPROBES=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/# CONFIG_DEBUG_FS is not set/c\CONFIG_DEBUG_FS=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/# CONFIG_DEBUG_INFO_REDUCED is not set/c\CONFIG_DEBUG_INFO_REDUCED=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/# CONFIG_DEBUG_INFO_SPLIT is not set/c\CONFIG_DEBUG_INFO_SPLIT=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/# CONFIG_DEBUG_INFO_DWARF4 is not set/c\CONFIG_DEBUG_INFO_DWARF4=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_RELOCATABLE=y/c\# CONFIG_RELOCATABLE is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_STRICT_KERNEL_RWX=y/c\# CONFIG_STRICT_KERNEL_RWX is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_ARCH_HAS_ELF_RANDOMIZE=y/c\# CONFIG_ARCH_HAS_ELF_RANDOMIZE is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_ARCH_MMAP_RND_BITS=18/c\# CONFIG_ARCH_MMAP_RND_BITS is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_STACKPROTECTOR=y/c\# CONFIG_STACKPROTECTOR is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_STACKPROTECTOR_STRONG=y/c\# CONFIG_STACKPROTECTOR_STRONG is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_SECCOMP_FILTER=y/c\# CONFIG_SECCOMP_FILTER is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_RANDOMIZE_BASE=y/c\# CONFIG_RANDOMIZE_BASE is not set' arch/arm64/configs/stock_defconfig
-          echo "# CONFIG_LTO_CLANG is not set" >>arch/arm64/configs/stock_defconfig
-          echo "# CONFIG_LTO_CLANG_THIN is not set" >>arch/arm64/configs/stock_defconfig
-          echo "# CONFIG_CFI_CLANG is not set" >>arch/arm64/configs/stock_defconfig
-          sed -i -e '/# CONFIG_MODULE_FORCE_LOAD is not set/c\CONFIG_MODULE_FORCE_LOAD=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/# CONFIG_MODULE_FORCE_UNLOAD is not set/c\CONFIG_MODULE_FORCE_UNLOAD=y' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG=y/c\# CONFIG_MODULE_SIG is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_FORCE=y/c\# CONFIG_MODULE_SIG_FORCE is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_ALL=y/c\# CONFIG_MODULE_SIG_ALL is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_SHA1=y/c\# CONFIG_MODULE_SIG_SHA1 is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_SHA224=y/c\# CONFIG_MODULE_SIG_SHA224 is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_SHA256=y/c\# CONFIG_MODULE_SIG_SHA256 is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_SHA384=y/c\# CONFIG_MODULE_SIG_SHA384 is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_SHA512=y/c\# CONFIG_MODULE_SIG_SHA512 is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_MODULE_SIG_HASH="sha512"/c\# CONFIG_MODULE_SIG_HASH is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_QCOM_SPMI_TEMP_ALARM=y/c\# CONFIG_QCOM_SPMI_TEMP_ALARM is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_CPU_THERMAL=y/c\# CONFIG_CPU_THERMAL is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_THERMAL=y/c\# CONFIG_THERMAL is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_THERMAL_EMERGENCY_POWEROFF_DELAY_MS=0/c\CONFIG_THERMAL_EMERGENCY_POWEROFF_DELAY_MS=2147483647' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_THERMAL_GOV_USER_SPACE=y/c\# CONFIG_THERMAL_GOV_USER_SPACE is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_THERMAL_GOV_LOW_LIMITS=y/c\# CONFIG_THERMAL_GOV_LOW_LIMITS is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_THERMAL_GOV_STEP_WISE=y/c\# CONFIG_THERMAL_GOV_STEP_WISE is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE=y/c\# CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_THERMAL_OF=y/c\# CONFIG_THERMAL_OF is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_QTI_THERMAL_LIMITS_DCVS=y/c\# CONFIG_QTI_THERMAL_LIMITS_DCVS is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_QTI_QMI_COOLING_DEVICE=y/c\# CONFIG_QTI_QMI_COOLING_DEVICE is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_QTI_CPU_ISOLATE_COOLING_DEVICE=y/c\# CONFIG_QTI_CPU_ISOLATE_COOLING_DEVICE is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_QCOM_TSENS=y/c\# CONFIG_QCOM_TSENS is not set' arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_QTI_LIMITS_ISENSE_CDSP=y/c\# CONFIG_QTI_LIMITS_ISENSE_CDSP is not set' arch/arm64/con
-          
+          sed -i '/case POWER_SUPPLY_PROP_CYCLE_COUNT:/,/break;/c\
+          \tcase POWER_SUPPLY_PROP_CYCLE_COUNT:\
+          \t#ifdef CONFIG_BATT_VERIFY_BY_DS28E16\
+          \t\tpval->intval = fg->maxim_cycle_count;\
+          \t#else\
+          \t\trc = get_cycle_count(chip->counter, &pval->intval);\
+          \t#endif\
+          \t\tbreak;' drivers/power/supply/qcom/qpnp-fg-gen4.c
+      
+      - name: Apply Patches (Skip for Kernel 3)
+        if: matrix.kernel != 3
+        run: |
+          cd kernel_tree
+          bash nextpatch.sh
+
+      - name: Revert to stock gpufreq
+        if: matrix.kernel == 3 || matrix.kernel == 4
+        run: |
+          cd kernel_tree
+          patch -p1 -f < "0001-stock-gpu-freq.patch"
+
+      - name: Change LTO Type
+        if: ${{ github.event.inputs.LTO_CHOICE == 'thin_lto' }}
+        run: |
+          cd kernel_tree
+          sed -i -e '/# CONFIG_LTO_CLANG_THIN is not set/c\CONFIG_LTO_CLANG_THIN=y;' arch/arm64/configs/vendor/munch_defconfig
+          sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\# CONFIG_LTO_CLANG_FULL is not set;' arch/arm64/configs/vendor/munch_defconfig
+
+      - name: Oplus Features
+        if: ${{ github.event.inputs.OPLUS_FEATURES == 'yes' }}
+        run: |
+          cd kernel_tree
+          sed -i -e '/# CONFIG_OPLUS_PORT is not set/c\CONFIG_OPLUS_PORT=y;' arch/arm64/configs/vendor/munch_defconfig
+
+      - name: Apply Modifications (if modified build)
+        if: matrix.kernel == 2 || matrix.kernel == 4
+        run: |
+          cd kernel_tree
+          sed -i -e '/<2553600>,/c\<2553600>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<2649600>,/c\//<2649600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<2745600>,/c\//<2745600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<2841600>,/c\//<2841600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<3187200>;/c\//<3187200>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-l11r-38-08-0a-dsc-cmd.dtsi
+          sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-l11r-38-08-0a-dsc-cmd.dtsi
+      
       - name: Build Kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=ARM64
-          export KBUILD_BUILD_USER="builder"
-          export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
-          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC+8 date)"
+          export KBUILD_BUILD_USER="renoroi"
+          export KBUILD_BUILD_HOST="dreamstate"
+          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
           make O=out vendor/munch_defconfig
           make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
