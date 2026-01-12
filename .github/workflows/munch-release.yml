@@ -18,7 +18,7 @@ on:
         required: false
       CUSTOM_SED:
         description: 'Custom Kernel Version'
-        default: '-FakeDreamer'
+        default: '-perf+'
         required: false
       COMPILER:
         description: 'Choose compiler'
@@ -28,8 +28,6 @@ on:
           - neutron
           - aosp
           - aosp-21
-          - clang-10
-          - clang-17
         default: aosp
       LTO_CHOICE:
         required: true
@@ -62,32 +60,9 @@ jobs:
 
       - name: Download & Extract Clang
         run: |
-          if [[ "${{ github.event.inputs.COMPILER }}" == "aosp" ]]; then
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
-            mkdir clang
-            tar -xf clang.tar.gz -C clang
-
-          elif [[ "${{ github.event.inputs.COMPILER }}" == "aosp-21" ]]; then
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/ebcc6c3bef363bc539ea39f45b6abae1dce6ff1a/clang-r574158.tar.gz -O clang.tar.gz
-            mkdir clang
-            tar -xf clang.tar.gz -C clang
-
-          elif [[ "${{ github.event.inputs.COMPILER }}" == "clang-10" ]]; then
-            # clang 10.0.7 (NDK r21e)
-            wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip -O ndk.zip
-            unzip -q ndk.zip
-            mkdir clang
-            mv android-ndk-r21e/toolchains/llvm/prebuilt/linux-x86_64/* clang/
-
-          elif [[ "${{ github.event.inputs.COMPILER }}" == "clang-17" ]]; then
-            # clang 17.0.2 (AOSP clang-r487747)
-            git clone --depth=1 --filter=blob:none --no-tags https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang
-          else
-            wget https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/10032024/neutron-clang-10032024.tar.zst -O clang.tar.zst
-            mkdir clang
-            unzstd -d clang.tar.zst
-            tar -xf clang.tar -C clang
-          fi
+          wget -q https://github.com/ClangBuiltLinux/llvm-project/releases/download/clang-r487747/clang-r487747.tar.gz
+          tar -xf clang-r487747.tar.gz
+          export PATH="$PWD/clang-r487747/bin:$PATH"
 
           
       - name: Set Kernel Environment Variables
@@ -169,7 +144,7 @@ jobs:
       
       - name: Build Kernel
         run: |
-          export PATH="$(pwd)/clang/bin:$PATH"
+          export PATH="$PWD/clang-r487747/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=ARM64
           export KBUILD_BUILD_USER="renoroi"
