@@ -102,6 +102,8 @@ jobs:
           cd kernel_tree
           echo 'CONFIG_LTO_CLANG_FULL=n' >>arch/arm64/configs/stock_defconfig
           echo 'CONFIG_LTO_CLANG_THIN=n' >>arch/arm64/configs/stock_defconfig
+          sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\CONFIG_LTO_CLANG_FULL=n' arch/arm64/configs/stock_defconfig
+          echo 'CONFIG_KALLSYMS_ALL=y' >>arch/arm64/configs/vendor/munch_defconfig
           make O=out vendor/munch_defconfig
           make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
