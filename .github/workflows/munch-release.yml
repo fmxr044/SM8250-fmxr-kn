@@ -58,7 +58,10 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install -y flex libncurses6 libtinfo5 build-essential bc bison libssl-dev libelf-dev
+          sudo apt install -y flex libncurses6 bc bison build-essential libssl-dev libelf-dev libncurses5-dev
+          # 软链接解决 Clang10 libtinfo5
+          sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5
+
 
 
       - name: Download & Extract Clang
