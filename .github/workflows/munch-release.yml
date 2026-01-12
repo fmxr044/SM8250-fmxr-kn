@@ -56,16 +56,11 @@ jobs:
 
     steps:
       - name: Install Dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y flex libncurses6 bc bison build-essential libssl-dev libelf-dev libncurses5-dev
-          # 软链接解决 Clang10 libtinfo5
-          sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5
-          sudo apt install -y libncurses5-dev
-          
+        run: sudo apt install flex libncurses6
+
       - name: Download & Extract Clang
         run: |
-          git clone https://github.com/sticpaper/Snapdragon-LLVM-ARM-Compiler-10.0.7-for-Android-NDK.git clang
+          git clone https://gitlab.com/kei-space/clang/r536225.git clang
           export PATH="$PWD/clang/bin:$PATH"
           
       - name: Set Kernel Environment Variables
@@ -95,19 +90,7 @@ jobs:
           if [[ "${{ github.event.inputs.CUSTOM_SED }}" != "-FakeDreamer" ]]; then
             sed -i -e 's/CONFIG_LOCALVERSION="-FakeDreamer"/CONFIG_LOCALVERSION="${{ github.event.inputs.CUSTOM_SED }}"/' arch/arm64/configs/vendor/munch_defconfig
           fi
-
-      - name: Remove cycle count
-        run: |
-          cd kernel_tree
-          sed -i '/case POWER_SUPPLY_PROP_CYCLE_COUNT:/,/break;/c\
-          \tcase POWER_SUPPLY_PROP_CYCLE_COUNT:\
-          \t#ifdef CONFIG_BATT_VERIFY_BY_DS28E16\
-          \t\tpval->intval = fg->maxim_cycle_count;\
-          \t#else\
-          \t\trc = get_cycle_count(chip->counter, &pval->intval);\
-          \t#endif\
-          \t\tbreak;' drivers/power/supply/qcom/qpnp-fg-gen4.c
-      
+          
       - name: Apply Patches (Skip for Kernel 3)
         if: matrix.kernel != 3
         run: |
@@ -119,20 +102,7 @@ jobs:
         run: |
           cd kernel_tree
           patch -p1 -f < "0001-stock-gpu-freq.patch"
-
-      - name: Change LTO Type
-        if: ${{ github.event.inputs.LTO_CHOICE == 'thin_lto' }}
-        run: |
-          cd kernel_tree
-          sed -i -e '/# CONFIG_LTO_CLANG_THIN is not set/c\CONFIG_LTO_CLANG_THIN=y;' arch/arm64/configs/vendor/munch_defconfig
-          sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\# CONFIG_LTO_CLANG_FULL is not set;' arch/arm64/configs/vendor/munch_defconfig
-
-      - name: Oplus Features
-        if: ${{ github.event.inputs.OPLUS_FEATURES == 'yes' }}
-        run: |
-          cd kernel_tree
-          sed -i -e '/# CONFIG_OPLUS_PORT is not set/c\CONFIG_OPLUS_PORT=y;' arch/arm64/configs/vendor/munch_defconfig
-
+          
       - name: Apply Modifications (if modified build)
         if: matrix.kernel == 2 || matrix.kernel == 4
         run: |
@@ -154,8 +124,10 @@ jobs:
           export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC+8 date)"
           cd kernel_tree
+          echo 'CONFIG_LTO_CLANG_FULL=n' >>arch/arm64/configs/stock_defconfig
+          echo 'CONFIG_LTO_CLANG_THIN=n' >>arch/arm64/configs/stock_defconfig
           make O=out vendor/munch_defconfig
-          make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu-
+          make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
             cp out/arch/arm64/boot/Image.gz ../Image.gz
             mv out/arch/arm64/boot/dtbo.img ../munch-aosp-dtbo.img
