@@ -20,30 +20,6 @@ on:
         description: 'Custom Kernel Version'
         default: '-perf+'
         required: false
-      COMPILER:
-        description: 'Choose compiler'
-        required: true
-        type: choice
-        options:
-          - neutron
-          - aosp
-          - aosp-21
-        default: aosp
-      LTO_CHOICE:
-        required: true
-        type: choice
-        options:
-          - full_lto
-          - thin_lto
-        default: thin_lto
-      OPLUS_FEATURES:
-        description: 'select yes if you want oplus features'
-        required: true
-        type: choice
-        options:
-          - 'yes'
-          - 'no'
-        default: 'no'
 
 jobs:
   build:
