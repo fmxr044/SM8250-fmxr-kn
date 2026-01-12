@@ -36,7 +36,7 @@ jobs:
 
       - name: Download & Extract Clang
         run: |
-          git clone https://gitlab.com/kei-space/clang/r536225.git clang
+          git clone --depth=1 https://github.com/sticpaper/Snapdragon-LLVM-ARM-Compiler-10.0.7-for-Android-NDK clang
           export PATH="$PWD/clang/bin:$PATH"
           
       - name: Set Kernel Environment Variables
@@ -48,6 +48,10 @@ jobs:
             3) echo "KERNEL_TREE_BRANCH=no-ksu" >> $GITHUB_ENV ;;
             4) echo "KERNEL_TREE_BRANCH=freesia" >> $GITHUB_ENV ;;
           esac
+         
+
+
+         
          
       - name: Checkout Kernel via PAT
         env:
