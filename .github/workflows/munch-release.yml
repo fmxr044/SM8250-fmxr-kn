@@ -60,9 +60,10 @@ jobs:
 
       - name: Download & Extract Clang
         run: |
-          wget -q https://github.com/kdrag0n/proton-clang/releases/download/2023.10.24/clang-r487747.tar.gz
-          tar -xf clang-r487747.tar.gz
+          wget -q https://github.com/ClangBuiltLinux/llvm-project/releases/download/clang-r487747/clang-r487747-linux-x86_64.tar.gz
+          tar -xf clang-r487747-linux-x86_64.tar.gz
           export PATH="$PWD/clang-r487747/bin:$PATH"
+
 
           
       - name: Set Kernel Environment Variables
