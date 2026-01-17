@@ -13,7 +13,7 @@ on:
         default: 'munch'
         required: true
       ANYKERNEL_URL:
-        description: 'AnyKernel Url (leave blank if you dont want AnyKernel)'
+        description: 'AnyKernel Url'
         default: 'https://github.com/re-noroi/anykernel3-test'
         required: false
       CUSTOM_SED:
@@ -23,37 +23,23 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        kernel: [1, 2, 3, 4]
     runs-on: ubuntu-latest
-    env:
-      UPLOAD_TO_RELEASE: false
 
     steps:
       - name: Install Dependencies
-        run: sudo apt install flex libncurses6
+        run: sudo apt install -y flex libncurses6
 
       - name: Download & Extract Clang
         run: |
           git clone --depth=1 https://github.com/sticpaper/Snapdragon-LLVM-ARM-Compiler-10.0.7-for-Android-NDK clang
-          export PATH="$PWD/clang/bin:$PATH"
-          
+          echo "$PWD/clang/bin" >> $GITHUB_PATH
+
       - name: Set Kernel Environment Variables
         run: |
           echo "KERNEL_TREE=${{ github.event.inputs.KERNEL_TREE_1 }}" >> $GITHUB_ENV
-          case "${{ matrix.kernel }}" in
-            1) echo "KERNEL_TREE_BRANCH=next-main" >> $GITHUB_ENV ;;
-            2) echo "KERNEL_TREE_BRANCH=next-susfs" >> $GITHUB_ENV ;;
-            3) echo "KERNEL_TREE_BRANCH=no-ksu" >> $GITHUB_ENV ;;
-            4) echo "KERNEL_TREE_BRANCH=freesia" >> $GITHUB_ENV ;;
-          esac
-         
+          echo "KERNEL_TREE_BRANCH=next-main" >> $GITHUB_ENV
 
-
-         
-         
-      - name: Checkout Kernel via PAT
+      - name: Checkout Kernel
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
@@ -62,181 +48,82 @@ jobs:
           else
             REPO_URL="${{ github.event.inputs.KERNEL_TREE_1 }}"
           fi
-          git clone --depth=1 --branch "${{ env.KERNEL_TREE_BRANCH }}" "${REPO_URL}" kernel_tree
+          git clone --depth=1 --branch "$KERNEL_TREE_BRANCH" "$REPO_URL" kernel_tree
 
       - name: Kernel Version
         run: |
           cd kernel_tree
           if [[ "${{ github.event.inputs.CUSTOM_SED }}" != "-FakeDreamer" ]]; then
-            sed -i -e 's/CONFIG_LOCALVERSION="-FakeDreamer"/CONFIG_LOCALVERSION="${{ github.event.inputs.CUSTOM_SED }}"/' arch/arm64/configs/vendor/munch_defconfig
+            sed -i \
+              's/CONFIG_LOCALVERSION="-FakeDreamer"/CONFIG_LOCALVERSION="${{ github.event.inputs.CUSTOM_SED }}"/' \
+              arch/arm64/configs/vendor/munch_defconfig
           fi
-          
-      - name: Apply Patches (Skip for Kernel 3)
-        if: matrix.kernel != 3
+
+      - name: Apply Patches
         run: |
           cd kernel_tree
           bash nextpatch.sh
 
-      - name: Revert to stock gpufreq
-        if: matrix.kernel == 3 || matrix.kernel == 4
-        run: |
-          cd kernel_tree
-          patch -p1 -f < "0001-stock-gpu-freq.patch"
-          
-      - name: Apply Modifications (if modified build)
-        if: matrix.kernel == 2 || matrix.kernel == 4
-        run: |
-          cd kernel_tree
-          sed -i -e '/<2553600>,/c\<2553600>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e '/<2649600>,/c\//<2649600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e '/<2745600>,/c\//<2745600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e '/<2841600>,/c\//<2841600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e '/<3187200>;/c\//<3187200>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
-          sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-l11r-38-08-0a-dsc-cmd.dtsi
-          sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-l11r-38-08-0a-dsc-cmd.dtsi
-      
       - name: Build Kernel
         run: |
-          export PATH="$PWD/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=ARM64
-          export KBUILD_BUILD_USER="builder"
-          export KBUILD_BUILD_HOST="pangu-build-component-vendor-295438-2fxw6-c8ds7-1cr82"
+          export KBUILD_BUILD_USER=builder
+          export KBUILD_BUILD_HOST=pangu-build
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC+8 date)"
+
           cd kernel_tree
-          echo 'CONFIG_LTO_CLANG_FULL=n' >>arch/arm64/configs/stock_defconfig
-          echo 'CONFIG_LTO_CLANG_THIN=n' >>arch/arm64/configs/stock_defconfig
-          sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\CONFIG_LTO_CLANG_FULL=n' arch/arm64/configs/stock_defconfig
-          echo 'CONFIG_KALLSYMS_ALL=y' >>arch/arm64/configs/vendor/munch_defconfig
+
+          sed -i 's/CONFIG_LTO_CLANG_FULL=y/CONFIG_LTO_CLANG_FULL=n/' arch/arm64/configs/stock_defconfig
+          echo 'CONFIG_KALLSYMS_ALL=y' >> arch/arm64/configs/vendor/munch_defconfig
+
           make O=out vendor/munch_defconfig
-          make O=out CC=clang -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
-          if [[ "${{ matrix.kernel }}" == 1 ]]; then
-            cp out/arch/arm64/boot/Image.gz ../Image.gz
-            mv out/arch/arm64/boot/dtbo.img ../munch-aosp-dtbo.img
-            mv out/arch/arm64/boot/dtb.img ../munch-normal-dtb
-          elif [[ "${{ matrix.kernel }}" == 2 ]]; then
-            cp out/arch/arm64/boot/Image.gz ../Image.gz
-            mv out/arch/arm64/boot/dtbo.img ../munch-miui-dtbo.img
-            mv out/arch/arm64/boot/dtb.img ../munch-effcpu-dtb
-          elif [[ "${{ matrix.kernel }}" == 3 ]]; then
-            cp out/arch/arm64/boot/Image.gz ../Image.gz
-            mv out/arch/arm64/boot/dtb.img ../munch-normal-gpustk-dtb
-          else
-            mv out/arch/arm64/boot/dtb.img ../munch-effcpu-gpustk-dtb
-          fi
+          make O=out CC=clang -j$(nproc) LLVM=1 LLVM_IAS=1
+
+          cp out/arch/arm64/boot/Image.gz ../Image.gz
+          cp out/arch/arm64/boot/dtb.img ../munch-dtb.img
+          cp out/arch/arm64/boot/dtbo.img ../munch-dtbo.img
 
       - name: Upload Kernel Artifacts
         uses: actions/upload-artifact@v4
-        if: matrix.kernel != 4
         with:
-          name: kernel-${{ matrix.kernel }}-base
+          name: kernel-munch
           path: |
             Image.gz
-
-      - name: Upload Kernel Artifacts
-        uses: actions/upload-artifact@v4
-        if: matrix.kernel == 1
-        with:
-          name: kernel-part-${{ matrix.kernel }}-addon
-          path: |
-            munch-aosp-dtbo.img
-            munch-normal-dtb
-
-      - name: Upload Kernel Artifacts
-        uses: actions/upload-artifact@v4
-        if: matrix.kernel == 2
-        with:
-          name: kernel-part-${{ matrix.kernel }}-addon
-          path: |
-            munch-miui-dtbo.img
-            munch-effcpu-dtb
-
-      - name: Upload Kernel Artifacts
-        uses: actions/upload-artifact@v4
-        if: matrix.kernel == 3
-        with:
-          name: kernel-part-${{ matrix.kernel }}-addon
-          path: |
-            munch-normal-gpustk-dtb
-
-      - name: Upload Kernel Artifacts
-        uses: actions/upload-artifact@v4
-        if: matrix.kernel == 4
-        with:
-          name: kernel-part-${{ matrix.kernel }}-addon
-          path: |
-            munch-effcpu-gpustk-dtb
+            munch-dtb.img
+            munch-dtbo.img
 
   package_anykernel:
     needs: build
-    strategy:
-      matrix:
-        kernel: [1, 2, 3]
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Kernel Build Image
+      - name: Download Kernel Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: kernel-${{ matrix.kernel }}-base
-          path: kernel-${{ matrix.kernel }}-base
-
-      - name: Download Kernel Build Addon 1
-        uses: actions/download-artifact@v4
-        with:
-          name: kernel-part-1-addon
-          path: kernel-part-1-addon
-
-      - name: Download Kernel Build Addon 2
-        uses: actions/download-artifact@v4
-        with:
-          name: kernel-part-2-addon
-          path: kernel-part-2-addon
-
-      - name: Download Kernel Build Addon 3
-        uses: actions/download-artifact@v4
-        with:
-          name: kernel-part-3-addon
-          path: kernel-part-3-addon
-
-      - name: Download Kernel Build Addon 4
-        uses: actions/download-artifact@v4
-        with:
-          name: kernel-part-4-addon
-          path: kernel-part-4-addon
+          name: kernel-munch
+          path: kernel
 
       - name: Clone AnyKernel3
-        run: git clone --recursive --depth=1 ${{ github.event.inputs.ANYKERNEL_URL }} -b munch AnyKernel3-${{ matrix.kernel }}
-
-      - name: Move Kernel Files to AnyKernel3
         run: |
-          mv kernel-${{ matrix.kernel }}-base/* AnyKernel3-${{ matrix.kernel }}/
-          mv kernel-part-1-addon/* AnyKernel3-${{ matrix.kernel }}/
-          mv kernel-part-2-addon/* AnyKernel3-${{ matrix.kernel }}/
-          mv kernel-part-3-addon/* AnyKernel3-${{ matrix.kernel }}/
-          mv kernel-part-4-addon/* AnyKernel3-${{ matrix.kernel }}/
+          git clone --recursive --depth=1 \
+            ${{ github.event.inputs.ANYKERNEL_URL }} \
+            -b munch AnyKernel3
+
+      - name: Move Kernel Files
+        run: |
+          mv kernel/* AnyKernel3/
 
       - name: Define ZIP Name
         run: |
-          COMPILED_DATE=$(date +%Y%m%d)
-          EXTRA=""
-          if [[ "${{ github.event.inputs.OPLUS_FEATURES }}" == "yes" ]]; then
-            EXTRA="-OPLUS"
-          fi
-          if [[ "${{ matrix.kernel }}" == "1" ]]; then
-            echo "ZIP_NAME=[FD-][next-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA}]" >> $GITHUB_ENV
-          elif [[ "${{ matrix.kernel }}" == "2" ]]; then
-            echo "ZIP_NAME=[FD-][susfs-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA}]" >> $GITHUB_ENV
-          else
-            echo "ZIP_NAME=[FD-][noksu-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA}]" >> $GITHUB_ENV
-          fi
-      
+          DATE=$(date +%Y%m%d)
+          echo "ZIP_NAME=FD-next-${{ github.event.inputs.CODENAME }}-${DATE}" >> $GITHUB_ENV
+
       - name: Upload Flashable Kernel Zip
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ZIP_NAME }}
           path: |
-            AnyKernel3-${{ matrix.kernel }}/
-            !AnyKernel3-${{ matrix.kernel }}/.git
-            !AnyKernel3-${{ matrix.kernel }}/.github
-      
+            AnyKernel3/
+            !AnyKernel3/.git
+            !AnyKernel3/.github
